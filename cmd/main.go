@@ -3,8 +3,8 @@ package main
 import (
 	"go-pos/internal/database"
 	"go-pos/internal/delivery/rest"
-	"go-pos/internal/repository/category"
-	"go-pos/internal/usecase/pos"
+	"go-pos/internal/repository"
+	"go-pos/internal/usecase"
 
 	"github.com/labstack/echo/v4"
 )
@@ -18,9 +18,9 @@ func main() {
 
 	db := database.GetDB(dbAddress)
 
-	cRepo := category.GetRepository(db)
+	cRepo := repository.GetCategoryRepository(db)
 
-	pUsecase := pos.GetUsecase(cRepo)
+	pUsecase := usecase.GetCategoryUsecase(cRepo)
 
 	handler := rest.NewHandler(pUsecase)
 
