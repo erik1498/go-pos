@@ -19,10 +19,12 @@ func main() {
 	db := database.GetDB(dbAddress)
 
 	cRepo := repository.GetCategoryRepository(db)
+	pRepo := repository.GetProductRepository(db)
 
-	pUsecase := usecase.GetCategoryUsecase(cRepo)
+	cUsecase := usecase.GetCategoryUsecase(cRepo)
+	pUsecase := usecase.GetProductUsecase(pRepo, cRepo)
 
-	handler := rest.NewHandler(pUsecase)
+	handler := rest.NewHandler(cUsecase, pUsecase)
 
 	rest.LoadRoutes(e, handler)
 

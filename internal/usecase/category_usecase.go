@@ -20,8 +20,7 @@ func GetCategoryUsecase(cRepo domain.CategoryRepository) domain.CategoryUsecase 
 
 func (pUsecase *categoryUsecase) GetAll(opts domain.QueryOptions) ([]model.Category, int64, error) {
 	allowedFields := map[string]bool{
-		"name":       true,
-		"created_at": true,
+		"name": true,
 	}
 
 	allowedSorts := map[string]bool{
@@ -36,15 +35,15 @@ func (pUsecase *categoryUsecase) GetAll(opts domain.QueryOptions) ([]model.Categ
 
 func (pUsecase *categoryUsecase) Create(req model.Category) (model.Category, error) {
 	category := model.Category{
-		PublicID: uuid.Must(uuid.NewV7()),
-		Name:     req.Name,
+		ID:   uuid.Must(uuid.NewV7()),
+		Name: req.Name,
 	}
 
 	return pUsecase.cRepo.Create(category)
 }
 
-func (pUsecase *categoryUsecase) GetByPublicID(id uuid.UUID) (model.Category, error) {
-	return pUsecase.cRepo.GetByPublicID(id)
+func (pUsecase *categoryUsecase) GetByID(id uuid.UUID) (model.Category, error) {
+	return pUsecase.cRepo.GetByID(id)
 }
 
 func (pUsecase *categoryUsecase) UpdateCategoryByID(id uuid.UUID, req model.Category) (model.Category, error) {

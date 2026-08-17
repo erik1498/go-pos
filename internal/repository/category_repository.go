@@ -56,10 +56,10 @@ func (cRepo *categoryRepo) Create(category model.Category) (model.Category, erro
 	return category, nil
 }
 
-func (cRepo *categoryRepo) GetByPublicID(id uuid.UUID) (model.Category, error) {
+func (cRepo *categoryRepo) GetByID(id uuid.UUID) (model.Category, error) {
 	var category model.Category
 
-	if err := cRepo.db.Where(&model.Category{PublicID: id}).First(&category).Error; err != nil {
+	if err := cRepo.db.Where(&model.Category{ID: id}).First(&category).Error; err != nil {
 		return model.Category{}, err
 	}
 
@@ -67,14 +67,21 @@ func (cRepo *categoryRepo) GetByPublicID(id uuid.UUID) (model.Category, error) {
 }
 
 func (cRepo *categoryRepo) UpdateCategoryByID(id uuid.UUID, category model.Category) (model.Category, error) {
-	if err := cRepo.db.Where(&model.Category{PublicID: id}).Clauses(clause.Returning{}).Updates(&category).Error; err != nil {
-		return model.Category{}, err
+	res := cRepo.db.Where(&model.Category{ID: id}).Clauses(clause.Returning{}).Updates(&category)
+
+	if res.Error != nil {
+		return model.Category{}, res.Error
 	}
+
+	if res.RowsAffected == 0 {
+		return model.Category{}, domain.CategoryErrNotFound
+	}
+
 	return category, nil
 }
 
 func (cRepo *categoryRepo) DeleteCategoryByID(id uuid.UUID) error {
-	if err := cRepo.db.Where(&model.Category{PublicID: id}).Delete(&model.Category{}).Error; err != nil {
+	if err := cRepo.db.Where(&model.Category{ID: id}).Delete(&model.Category{}).Error; err != nil {
 		return err
 	}
 

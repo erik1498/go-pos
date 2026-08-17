@@ -7,5 +7,5 @@ import (
 )
 
 func seedDB(db *gorm.DB) {
-	db.AutoMigrate(&model.Category{})
+	db.AutoMigrate(&model.Category{}, &model.Product{})
 }

@@ -9,5 +9,6 @@ var (
 
 	SuccessGetDataByID = "get data by ID success"
 	SuccessGetData     = "get data success"
+	SuccessCreateData  = "create data success"
 	SuccessUpdateData  = "update data success"
 )

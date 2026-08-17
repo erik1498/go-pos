@@ -13,7 +13,7 @@ var (
 
 type CategoryRepository interface {
 	Create(category model.Category) (model.Category, error)
-	GetByPublicID(id uuid.UUID) (model.Category, error)
+	GetByID(id uuid.UUID) (model.Category, error)
 	GetAll(opts QueryOptions) ([]model.Category, int64, error)
 	UpdateCategoryByID(id uuid.UUID, category model.Category) (model.Category, error)
 	DeleteCategoryByID(id uuid.UUID) error
@@ -21,7 +21,7 @@ type CategoryRepository interface {
 
 type CategoryUsecase interface {
 	Create(category model.Category) (model.Category, error)
-	GetByPublicID(id uuid.UUID) (model.Category, error)
+	GetByID(id uuid.UUID) (model.Category, error)
 	GetAll(opts QueryOptions) ([]model.Category, int64, error)
 	UpdateCategoryByID(id uuid.UUID, req model.Category) (model.Category, error)
 	DeleteCategoryByID(id uuid.UUID) error

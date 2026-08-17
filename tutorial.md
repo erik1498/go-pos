@@ -537,7 +537,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (h *handler) GetAll(c echo.Context) error {
+func (h *handler) GetAllCategory(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
 
 	categoryList, totalItems, err := h.cUsecase.GetAll(opts)
@@ -550,7 +550,7 @@ func (h *handler) GetAll(c echo.Context) error {
 	return response.SuccessWithMeta(c, http.StatusOK, domain.SuccessGetData, categoryList, meta)
 }
 
-func (h *handler) Create(c echo.Context) error {
+func (h *handler) CreateCategory(c echo.Context) error {
 	var req model.Category
 	err := json.NewDecoder(c.Request().Body).Decode(&req)
 
@@ -573,7 +573,7 @@ func (h *handler) Create(c echo.Context) error {
 	})
 }
 
-func (h *handler) GetByPublicID(c echo.Context) error {
+func (h *handler) GetCategoryByPublicID(c echo.Context) error {
 	idParam := c.Param("id")
 
 	publicID, err := uuid.Parse(idParam)
