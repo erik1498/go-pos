@@ -4,7 +4,6 @@ import "github.com/labstack/echo/v4"
 
 func LoadRoutes(e *echo.Echo, h *handler) {
 	categoryGroup := e.Group("/categories")
-
 	categoryGroup.GET("", h.GetAllCategory)
 	categoryGroup.POST("", h.CreateCategory)
 	categoryGroup.GET("/:id", h.GetCategoryByID)
@@ -12,10 +11,13 @@ func LoadRoutes(e *echo.Echo, h *handler) {
 	categoryGroup.DELETE("/:id", h.DeleteCategoryByID)
 
 	productGroup := e.Group("/products")
-
 	productGroup.GET("", h.GetAllProduct)
 	productGroup.POST("", h.CreateProduct)
 	productGroup.GET("/:id", h.GetProductByID)
 	productGroup.PUT("/:id", h.UpdateProductByID)
 	productGroup.DELETE("/:id", h.DeleteProductByID)
+
+	memberGroup := e.Group("/members")
+	memberGroup.GET("", h.GetAllMember)
+	memberGroup.POST("", h.CreateMember)
 }
