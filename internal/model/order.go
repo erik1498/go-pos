@@ -16,19 +16,12 @@ const (
 	PaymentStatusCanceled PaymentStatus = "CANCEL"
 )
 
-type PaymentMethod string
-
-const (
-	PaymentMethodCash         PaymentMethod = "CASH"
-	PaymentMethodMidtransQRIS PaymentMethod = "MIDTRANS_QRIS"
-	PaymentMethodMidtransVA   PaymentMethod = "MIDTRANS_VA"
-	PaymentMethodMidtransCC   PaymentMethod = "MIDTRANS_CC"
-)
-
 type Order struct {
 	ID                    uuid.UUID     `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null" json:"id"`
 	OrderNo               string        `gorm:"type:varchar(50);uniqueIndex;not null;" json:"order_no"`
-	PaymentMethod         PaymentMethod `gorm:"type:varchar(30);not null;default:'CASH'" json:"payment_method"`
+	MemberID              uuid.UUID     `gorm:"type:uuid;index" json:"member_id"`
+	Member                *Member       `gorm:"foreignKey:MemberID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"member,omitempty"`
+	PaymentMethod         string        `gorm:"type:varchar(30);not null;default:'CASH'" json:"payment_method"`
 	PaymentStatus         PaymentStatus `gorm:"type:varchar(30);not null;default:'PENDING'" json:"payment_status"`
 	MidtransTransactionID *string       `gorm:"type:varchar(255);uniqueIndex" json:"midtrans_transaction_id,omitempty"`
 	SnapToken             *string       `gorm:"type:varchar(255)" json:"snap_token,omitempty"`
@@ -44,7 +37,7 @@ type Order struct {
 type OrderItem struct {
 	ID           uuid.UUID      `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null" json:"id"`
 	OrderID      uuid.UUID      `gorm:"type:uuid;not null;index" json:"order_id"`
-	ProductID    uuid.UUID      `gorm:"type:uuid;not null" json:"product_id"`
+	ProductID    uuid.UUID      `gorm:"type:uuid;not null;index" json:"product_id"`
 	ProductName  string         `gorm:"type:varchar(150);not null" json:"product_name"`
 	BasePrice    float64        `gorm:"type:numeric(12,3);not null" json:"base_price"`
 	Qty          float64        `gorm:"type:numeric(12,3);not null" json:"qty"`
@@ -59,4 +52,10 @@ type OrderItemTax struct {
 	TaxName     string     `gorm:"type:varchar(50);not null" json:"tax_name"`
 	TaxRate     float64    `gorm:"type:numeric(5,2);not null" json:"tax_rate"`
 	TaxAmount   float64    `gorm:"type:numeric(12,3);not null" json:"tax_amount"`
+}
+
+type OrderRequest struct {
+	OrderNo       string `json:"order_no"`
+	MemberID      string `json:"member_id"`
+	PaymentMethod string `json:"payment_method"`
 }

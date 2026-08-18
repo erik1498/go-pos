@@ -23,4 +23,8 @@ func LoadRoutes(e *echo.Echo, h *handler) {
 	memberGroup.GET("/:id", h.GetMemberByID)
 	memberGroup.PUT("/:id", h.UpdateMemberByID)
 	memberGroup.DELETE("/:id", h.DeleteMemberByID)
+
+	orderGroup := e.Group("/orders")
+	orderGroup.GET("", h.GetAllOrder)
+	orderGroup.POST("", h.CreateOrder)
 }
