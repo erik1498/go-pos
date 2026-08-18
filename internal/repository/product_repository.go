@@ -49,10 +49,8 @@ func (pRepo *productRepository) GetAll(opts domain.QueryOptions) ([]model.Produc
 func (pRepo *productRepository) Create(product model.Product) (model.Product, error) {
 	if err := pRepo.db.Create(&product).Error; err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" {
-				return model.Product{}, domain.ProductSKUIsAlreadyRegistered
-			}
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return model.Product{}, domain.ProductSKUIsAlreadyRegistered
 		}
 		return model.Product{}, err
 	}
@@ -64,7 +62,7 @@ func (pRepo *productRepository) GetByID(id uuid.UUID) (model.Product, error) {
 
 	if err := pRepo.db.First(&product, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.Product{}, domain.ProductErrNotFound
+			return model.Product{}, domain.ErrProductNotFound
 		}
 		return model.Product{}, err
 	}
@@ -79,15 +77,22 @@ func (pRepo *productRepository) UpdateByID(id uuid.UUID, product model.Product) 
 	}
 
 	if res.RowsAffected == 0 {
-		return model.Product{}, domain.ProductErrNotFound
+		return model.Product{}, domain.ErrProductNotFound
 	}
 
 	return product, nil
 }
 
 func (pRepo *productRepository) DeleteByID(id uuid.UUID) error {
-	if err := pRepo.db.Delete(&model.Product{}, id).Error; err != nil {
-		return err
+	res := pRepo.db.Delete(&model.Product{}, id)
+
+	if res.Error != nil {
+		return res.Error
 	}
+
+	if res.RowsAffected == 0 {
+		return domain.ErrProductNotFound
+	}
+
 	return nil
 }

@@ -47,9 +47,6 @@ func (cRepo *categoryRepo) GetAll(opts domain.QueryOptions) ([]model.Category, i
 
 func (cRepo *categoryRepo) Create(category model.Category) (model.Category, error) {
 	if err := cRepo.db.Create(&category).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.Category{}, domain.CategoryErrNotFound
-		}
 		return model.Category{}, err
 	}
 
@@ -59,7 +56,10 @@ func (cRepo *categoryRepo) Create(category model.Category) (model.Category, erro
 func (cRepo *categoryRepo) GetByID(id uuid.UUID) (model.Category, error) {
 	var category model.Category
 
-	if err := cRepo.db.Where(&model.Category{ID: id}).First(&category).Error; err != nil {
+	if err := cRepo.db.First(&category, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return model.Category{}, domain.ErrCategoryNotFound
+		}
 		return model.Category{}, err
 	}
 
@@ -74,15 +74,21 @@ func (cRepo *categoryRepo) UpdateCategoryByID(id uuid.UUID, category model.Categ
 	}
 
 	if res.RowsAffected == 0 {
-		return model.Category{}, domain.CategoryErrNotFound
+		return model.Category{}, domain.ErrCategoryNotFound
 	}
 
 	return category, nil
 }
 
 func (cRepo *categoryRepo) DeleteCategoryByID(id uuid.UUID) error {
-	if err := cRepo.db.Where(&model.Category{ID: id}).Delete(&model.Category{}).Error; err != nil {
-		return err
+	res := cRepo.db.Delete(&model.Category{}, id)
+
+	if res.Error != nil {
+		return res.Error
+	}
+
+	if res.RowsAffected == 0 {
+		return domain.ErrCategoryNotFound
 	}
 
 	return nil

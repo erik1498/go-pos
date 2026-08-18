@@ -11,7 +11,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 )
 
 func (h *handler) GetAllCategory(c echo.Context) error {
@@ -55,10 +54,9 @@ func (h *handler) GetCategoryByID(c echo.Context) error {
 	category, err := h.cUsecase.GetByID(ID)
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return response.ErrNotFound(c, err.Error())
+		if errors.Is(err, domain.ErrCategoryNotFound) {
+			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
-
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
@@ -83,8 +81,8 @@ func (h *handler) UpdateCategoryById(c echo.Context) error {
 	category, err := h.cUsecase.UpdateCategoryByID(ID, req)
 	if err != nil {
 
-		if errors.Is(err, domain.CategoryErrNotFound) {
-			return response.ErrNotFound(c, domain.CategoryErrNotFound.Error())
+		if errors.Is(err, domain.ErrCategoryNotFound) {
+			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
 
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
@@ -104,8 +102,8 @@ func (h *handler) DeleteCategoryByID(c echo.Context) error {
 	err = h.cUsecase.DeleteCategoryByID(ID)
 	if err != nil {
 
-		if errors.Is(err, domain.CategoryErrNotFound) {
-			return response.ErrNotFound(c, domain.CategoryErrNotFound.Error())
+		if errors.Is(err, domain.ErrCategoryNotFound) {
+			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
 
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())

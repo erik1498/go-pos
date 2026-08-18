@@ -137,3 +137,64 @@ func (mUsecase *memberUsecase) Create(req model.MemberRequest) (model.Member, er
 
 	return member, nil
 }
+
+func (mUsecase *memberUsecase) GetByID(id uuid.UUID) (model.Member, error) {
+	member, err := mUsecase.mRepo.GetByID(id)
+	if err != nil {
+		return model.Member{}, err
+	}
+
+	member.Name, err = utils.DecryptAES(member.NameEncrypted, mUsecase.aesKey)
+	if err != nil {
+		return model.Member{}, domain.ErrDecryptName
+	}
+	member.Email, err = utils.DecryptAES(member.EmailEncrypted, mUsecase.aesKey)
+	if err != nil {
+		return model.Member{}, domain.ErrDecryptEmail
+	}
+	member.Phone, err = utils.DecryptAES(member.PhoneEncrypted, mUsecase.aesKey)
+	if err != nil {
+		return model.Member{}, domain.ErrDecryptPhone
+	}
+
+	return member, nil
+}
+
+func (mUsecase *memberUsecase) UpdateByID(req model.MemberRequest, id uuid.UUID) (model.Member, error) {
+	nameEncrypted, err := utils.EncryptAES(req.Name, mUsecase.aesKey)
+	if err != nil {
+		return model.Member{}, domain.ErrEncryptName
+	}
+	phoneEncrypted, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
+	if err != nil {
+		return model.Member{}, domain.ErrEncryptName
+	}
+	emailEncrypted, err := utils.EncryptAES(req.Email, mUsecase.aesKey)
+	if err != nil {
+		return model.Member{}, domain.ErrEncryptName
+	}
+
+	phoneBindex := utils.GenerateBlindedIndex(req.Phone, mUsecase.bindexKey)
+	var emailBIndex *string
+	if req.Email != "" {
+		hashEmail := utils.GenerateBlindedIndex(req.Email, mUsecase.bindexKey)
+		emailBIndex = &hashEmail
+	}
+
+	member := model.Member{
+		NameEncrypted:  nameEncrypted,
+		PhoneEncrypted: phoneEncrypted,
+		EmailEncrypted: emailEncrypted,
+		EmailBIndex:    emailBIndex,
+		PhoneBIndex:    phoneBindex,
+		Name:           req.Name,
+		Phone:          req.Phone,
+		Email:          req.Email,
+	}
+
+	return mUsecase.mRepo.UpdateByID(member, id)
+}
+
+func (mUsecase *memberUsecase) DeleteByID(id uuid.UUID) error {
+	return mUsecase.mRepo.DeleteByID(id)
+}

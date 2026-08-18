@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ProductErrNotFound            = errors.New("product data not found")
+	ErrProductNotFound            = errors.New("product data not found")
 	ProductSKUIsAlreadyRegistered = errors.New("product sku is already registered")
 )
 

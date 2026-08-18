@@ -36,8 +36,8 @@ func (h *handler) CreateProduct(c echo.Context) error {
 
 	product, err := h.pUsecase.Create(req)
 	if err != nil {
-		if err == domain.CategoryErrNotFound {
-			return response.ErrNotFound(c, domain.CategoryErrNotFound.Error())
+		if err == domain.ErrCategoryNotFound {
+			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
 		if errors.Is(err, domain.ProductSKUIsAlreadyRegistered) {
 			return response.ErrBadRequest(c, domain.ProductSKUIsAlreadyRegistered.Error())
@@ -58,8 +58,8 @@ func (h *handler) GetProductByID(c echo.Context) error {
 
 	product, err := h.pUsecase.GetByID(ID)
 	if err != nil {
-		if errors.Is(err, domain.ProductErrNotFound) {
-			return response.ErrNotFound(c, domain.ProductErrNotFound.Error())
+		if errors.Is(err, domain.ErrProductNotFound) {
+			return response.ErrNotFound(c, domain.ErrProductNotFound.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -82,11 +82,11 @@ func (h *handler) UpdateProductByID(c echo.Context) error {
 
 	product, err := h.pUsecase.UpdateByID(ID, req)
 	if err != nil {
-		if errors.Is(err, domain.CategoryErrNotFound) {
-			return response.ErrNotFound(c, domain.CategoryErrNotFound.Error())
+		if errors.Is(err, domain.ErrCategoryNotFound) {
+			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
-		if errors.Is(err, domain.ProductErrNotFound) {
-			return response.ErrNotFound(c, domain.ProductErrNotFound.Error())
+		if errors.Is(err, domain.ErrProductNotFound) {
+			return response.ErrNotFound(c, domain.ErrProductNotFound.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -104,8 +104,8 @@ func (h *handler) DeleteProductByID(c echo.Context) error {
 
 	err = h.pUsecase.DeleteByID(ID)
 	if err != nil {
-		if errors.Is(err, domain.ProductErrNotFound) {
-			return response.ErrNotFound(c, domain.ProductErrNotFound.Error())
+		if errors.Is(err, domain.ErrProductNotFound) {
+			return response.ErrNotFound(c, domain.ErrProductNotFound.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}

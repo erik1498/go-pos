@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	CategoryErrNotFound = errors.New("category data not found")
+	ErrCategoryNotFound = errors.New("category data not found")
 )
 
 type CategoryRepository interface {
