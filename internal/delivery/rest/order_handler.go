@@ -26,7 +26,7 @@ func (h *handler) GetAllOrder(c echo.Context) error {
 }
 
 func (h *handler) CreateOrder(c echo.Context) error {
-	var req model.OrderRequest
+	var req model.CreateOrderRequest
 
 	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())

@@ -11,6 +11,7 @@ var (
 	ErrOrderNotFound = errors.New("order not found")
 
 	ErrOrderNoIsAlreadyRegistered = errors.New("order no is already registered")
+	ErrProductStockIsNotEnough    = errors.New("product stock is not enough")
 )
 
 type OrderRepository interface {
@@ -23,5 +24,5 @@ type OrderRepository interface {
 
 type OrderUsecase interface {
 	GetAll(opts QueryOptions) ([]model.Order, int64, error)
-	Create(req model.OrderRequest) (model.Order, error)
+	Create(req model.CreateOrderRequest) (model.Order, error)
 }

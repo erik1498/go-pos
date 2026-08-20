@@ -22,6 +22,19 @@ func GetProductRepository(db *gorm.DB) domain.ProductRepository {
 	}
 }
 
+func (pRepo *productRepository) GetByIDWithTaxes(id uuid.UUID) (model.Product, error) {
+	var product model.Product
+
+	err := pRepo.db.First(&product, id).Preload("Taxes").Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return model.Product{}, domain.ErrProductNotFound
+		}
+		return model.Product{}, err
+	}
+	return product, nil
+}
+
 func (pRepo *productRepository) GetAll(opts domain.QueryOptions) ([]model.Product, int64, error) {
 	var productList []model.Product
 	var totalItems int64

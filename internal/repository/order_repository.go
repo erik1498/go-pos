@@ -7,7 +7,6 @@ import (
 	"go-pos/pkg/utils"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -49,15 +48,26 @@ func (oRepo *orderRepository) GetAll(opts domain.QueryOptions) ([]model.Order, i
 }
 
 func (oRepo *orderRepository) Create(order model.Order) (model.Order, error) {
-	if err := oRepo.db.Create(&order).Error; err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return model.Order{}, domain.ErrOrderNoIsAlreadyRegistered
+	err := oRepo.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&order).Error; err != nil {
+			return err
 		}
-		return model.Order{}, err
-	}
 
-	return order, nil
+		for _, item := range order.Items {
+			res := tx.Model(&model.Product{}).Where("id = ? AND stock >= ?", item.ProductID, item.Qty).UpdateColumn("stock", gorm.Expr("stock - ?", item.Qty))
+
+			if res.Error != nil {
+				return res.Error
+			}
+
+			if res.RowsAffected == 0 {
+				return domain.ErrProductStockIsNotEnough
+			}
+		}
+
+		return nil
+	})
+	return order, err
 }
 
 func (oRepo *orderRepository) GetByID(id uuid.UUID) (model.Order, error) {

@@ -44,7 +44,7 @@ func main() {
 	cUsecase := usecase.GetCategoryUsecase(cRepo)
 	pUsecase := usecase.GetProductUsecase(pRepo, cRepo)
 	mUsecase := usecase.GetMemberUsecase(mRepo, aesKey, bindexKey)
-	oUsecase := usecase.GetOrderUsecase(oRepo, mRepo)
+	oUsecase := usecase.GetOrderUsecase(oRepo, mRepo, pRepo)
 
 	handler := rest.NewHandler(cUsecase, pUsecase, mUsecase, oUsecase)
 
