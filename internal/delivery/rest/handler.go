@@ -10,6 +10,7 @@ type handler struct {
 	mUsecase domain.MemberUsecase
 	oUsecase domain.OrderUsecase
 	tUsecase domain.TaxUsecase
+	uUsecase domain.UserUsecase
 }
 
 func NewHandler(
@@ -18,6 +19,7 @@ func NewHandler(
 	mUsecase domain.MemberUsecase,
 	oUsecase domain.OrderUsecase,
 	tUsecase domain.TaxUsecase,
+	uUsecase domain.UserUsecase,
 ) *handler {
 	return &handler{
 		cUsecase: cUsecase,
@@ -25,5 +27,6 @@ func NewHandler(
 		mUsecase: mUsecase,
 		oUsecase: oUsecase,
 		tUsecase: tUsecase,
+		uUsecase: uUsecase,
 	}
 }

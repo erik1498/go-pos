@@ -6,9 +6,19 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"go-pos/internal/domain"
 	"io"
+	"os"
+	"strconv"
+
+	"golang.org/x/crypto/argon2"
+)
+
+const (
+	cipherFormat = "$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s"
 )
 
 func GenerateBlindedIndex(data, secretKey string) string {
@@ -70,4 +80,65 @@ func DecryptAES(cipherText []byte, secretKey []byte) (string, error) {
 	}
 
 	return string(plainText), nil
+}
+
+type argonParams struct {
+	memory     uint32
+	time       uint32
+	threads    uint8
+	saltLength uint32
+	keyLength  uint32
+}
+
+func getEnvAsUint32(key string, fallback uint32) uint32 {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return fallback
+	}
+	valueInt, err := strconv.ParseUint(valueStr, 10, 32)
+	if err != nil {
+		return fallback
+	}
+	return uint32(valueInt)
+}
+
+func getArgonParams() argonParams {
+	return argonParams{
+		memory:     getEnvAsUint32("ARGON2_MEMORY", 64*1024),
+		time:       getEnvAsUint32("ARGON2_TIME", 3),
+		threads:    uint8(getEnvAsUint32("ARGON2_THREADS", 4)),
+		saltLength: getEnvAsUint32("ARGON2_SALT_LENGTH", 16),
+		keyLength:  getEnvAsUint32("ARGON2_KEY_LENGTH", 32),
+	}
+}
+
+func generateSalt(length uint32) ([]byte, error) {
+	salt := make([]byte, length)
+
+	if _, err := rand.Read(salt); err != nil {
+		return nil, err
+	}
+
+	return salt, nil
+}
+
+func HashPassword(password string, aesKey []byte) (string, error) {
+	p := getArgonParams()
+	salt, err := generateSalt(p.saltLength)
+	if err != nil {
+		return "", err
+	}
+
+	argonHash := argon2.IDKey([]byte(password), salt, p.time, p.memory, p.threads, p.keyLength)
+
+	argonHashEncrypt, err := EncryptAES(string(argonHash), aesKey)
+	if err != nil {
+		return "", err
+	}
+	b64Hash := base64.RawStdEncoding.EncodeToString(argonHashEncrypt)
+	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
+
+	encodedHash := fmt.Sprintf(cipherFormat, argon2.Version, p.memory, p.time, p.threads, b64Hash, b64Salt)
+
+	return encodedHash, nil
 }

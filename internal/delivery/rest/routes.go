@@ -28,10 +28,13 @@ func LoadRoutes(e *echo.Echo, h *handler) {
 	orderGroup.GET("", h.GetAllOrder)
 	orderGroup.POST("", h.CreateOrder)
 
-	taxGroup := e.Group("/tax")
+	taxGroup := e.Group("/taxes")
 	taxGroup.GET("", h.GetAllTax)
 	taxGroup.POST("", h.CreateTax)
 	taxGroup.GET("/:id", h.GetTaxByID)
 	taxGroup.PUT("/:id", h.GetTaxByID)
 	taxGroup.DELETE("/:id", h.DeleteTaxByID)
+
+	userGroup := e.Group("/users")
+	userGroup.POST("/register", h.RegisterUser)
 }

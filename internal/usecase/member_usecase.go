@@ -17,10 +17,10 @@ type memberUsecase struct {
 	bindexKey string
 }
 
-func GetMemberUsecase(mRepo domain.MemberRepository, aseKey string, bindexKey string) domain.MemberUsecase {
+func GetMemberUsecase(mRepo domain.MemberRepository, aesKey string, bindexKey string) domain.MemberUsecase {
 	return &memberUsecase{
 		mRepo:     mRepo,
-		aesKey:    []byte(aseKey),
+		aesKey:    []byte(aesKey),
 		bindexKey: bindexKey,
 	}
 }

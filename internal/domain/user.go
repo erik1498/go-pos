@@ -1,6 +1,8 @@
 package domain
 
-import "go-pos/internal/model"
+import (
+	"go-pos/internal/model"
+)
 
 var (
 	ErrUsernameOrPasswordInvalid = "username or password invalid"
