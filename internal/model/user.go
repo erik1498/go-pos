@@ -1,0 +1,32 @@
+package model
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type UserRole string
+
+const (
+	UserRoleCashier UserRole = "CASHIER"
+	UserRoleAdmin   UserRole = "ADMIN"
+)
+
+type User struct {
+	ID             uuid.UUID `gorm:"primaryKey;type:uuid;uniqueIndex;not null" json:"-"`
+	Username       string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
+	EmailEncrypted []byte    `gorm:"type:bytea;not null;" json:"-"`
+	EmailBIndex    string    `gorm:"type:varchar(64);uniqueIndex;not null" json:"-"`
+	Email          string    `gorm:"-" json:"email,omitempty"`
+	Hash           string    `gorm:"type:varchar(255);not null;" json:"-"`
+	Role           UserRole  `gorm:"type:varchar(20);not null;default:'CASHIER'" json:"role"`
+	CreatedAt      time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+type RegisterUser struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
