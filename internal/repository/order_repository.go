@@ -7,7 +7,9 @@ import (
 	"go-pos/pkg/utils"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type orderRepository struct {
@@ -50,6 +52,12 @@ func (oRepo *orderRepository) GetAll(opts domain.QueryOptions) ([]model.Order, i
 func (oRepo *orderRepository) Create(order model.Order) (model.Order, error) {
 	err := oRepo.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&order).Error; err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgErr.ConstraintName == "idx_orders_order_no" {
+					return domain.ErrOrderNoIsAlreadyRegistered
+				}
+			}
 			return err
 		}
 
@@ -82,7 +90,7 @@ func (oRepo *orderRepository) GetByID(id uuid.UUID) (model.Order, error) {
 }
 
 func (oRepo *orderRepository) UpdateByID(id uuid.UUID, order model.Order) (model.Order, error) {
-	res := oRepo.db.Where(&model.Order{ID: id}).Updates(&order)
+	res := oRepo.db.Where(&model.Order{ID: id}).Clauses(clause.Returning{}).Updates(&order)
 
 	if res.Error != nil {
 		return model.Order{}, res.Error

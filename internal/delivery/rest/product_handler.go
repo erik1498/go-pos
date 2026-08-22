@@ -39,8 +39,11 @@ func (h *handler) CreateProduct(c echo.Context) error {
 		if err == domain.ErrCategoryNotFound {
 			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
-		if errors.Is(err, domain.ProductSKUIsAlreadyRegistered) {
-			return response.ErrBadRequest(c, domain.ProductSKUIsAlreadyRegistered.Error())
+		if errors.Is(err, domain.ErrTaxNotFound) {
+			return response.ErrNotFound(c, domain.ErrTaxNotFound.Error())
+		}
+		if errors.Is(err, domain.ErrProductSKUIsAlreadyRegistered) {
+			return response.ErrBadRequest(c, domain.ErrProductSKUIsAlreadyRegistered.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}

@@ -37,7 +37,10 @@ func (h *handler) CreateOrder(c echo.Context) error {
 		if errors.Is(err, domain.ErrOrderNoIsAlreadyRegistered) {
 			return response.ErrBadRequest(c, domain.ErrOrderNoIsAlreadyRegistered.Error())
 		}
-		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
+		if errors.Is(err, domain.ErrProductStockIsNotEnough) {
+			return response.ErrBadRequest(c, domain.ErrProductStockIsNotEnough.Error())
+		}
+		return response.ErrInternalServer(c, err.Error())
 	}
 
 	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, order)

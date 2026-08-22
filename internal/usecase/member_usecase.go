@@ -84,7 +84,7 @@ func (mUsecase *memberUsecase) Create(req model.MemberRequest) (model.Member, er
 	}
 
 	ID := uuid.Must(uuid.NewV7())
-	memberCode := fmt.Sprintf("MBR-%s-%s", time.Now().Format("060102"), strings.ToUpper(ID.String()[:4]))
+	memberCode := fmt.Sprintf("MBR-%s-%s", time.Now().Format("060102150405"), strings.ToUpper(ID.String()[:4]))
 
 	nameEnc, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
 	if err != nil {

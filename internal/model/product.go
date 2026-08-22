@@ -27,4 +27,9 @@ type ProductRequest struct {
 	SKU        string          `json:"sku"`
 	Price      decimal.Decimal `json:"price"`
 	CategoryID string          `json:"category_id"`
+	Tax        []Tax           `json:"tax"`
+}
+
+type ProductTaxRequest struct {
+	TaxID string `json:"tax_id"`
 }

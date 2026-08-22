@@ -11,12 +11,14 @@ import (
 type productUsecase struct {
 	pRepo domain.ProductRepository
 	cRepo domain.CategoryRepository
+	tRepo domain.TaxRepository
 }
 
-func GetProductUsecase(pRepo domain.ProductRepository, cRepo domain.CategoryRepository) domain.ProductUsecase {
+func GetProductUsecase(pRepo domain.ProductRepository, cRepo domain.CategoryRepository, tRepo domain.TaxRepository) domain.ProductUsecase {
 	return &productUsecase{
 		pRepo: pRepo,
 		cRepo: cRepo,
+		tRepo: tRepo,
 	}
 }
 
@@ -38,7 +40,6 @@ func (pUsecase *productUsecase) GetAll(opts domain.QueryOptions) ([]model.Produc
 
 func (pUsecase *productUsecase) Create(req model.ProductRequest) (model.Product, error) {
 	category, err := pUsecase.cRepo.GetByID(uuid.MustParse(req.CategoryID))
-
 	if err != nil {
 		return model.Product{}, err
 	}
@@ -50,6 +51,18 @@ func (pUsecase *productUsecase) Create(req model.ProductRequest) (model.Product,
 		SKU:        req.SKU,
 		Price:      req.Price,
 	}
+
+	var taxes []model.Tax
+	for _, item := range req.Tax {
+		tax, err := pUsecase.tRepo.GetByID(item.ID)
+		if err != nil {
+			return model.Product{}, err
+		}
+
+		taxes = append(taxes, tax)
+	}
+
+	product.Taxes = taxes
 
 	return pUsecase.pRepo.Create(product)
 }

@@ -22,6 +22,7 @@ func GetOrderUsecase(oRepo domain.OrderRepository, mRepo domain.MemberRepository
 	return &orderUsecase{
 		oRepo: oRepo,
 		mRepo: mRepo,
+		pRepo: pRepo,
 	}
 }
 
@@ -41,8 +42,13 @@ func (oUsecase *orderUsecase) GetAll(opts domain.QueryOptions) ([]model.Order, i
 }
 
 func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order, error) {
+	_, err := oUsecase.mRepo.GetByID(*req.MemberID)
+	if err != nil && req.MemberID != nil {
+		return model.Order{}, err
+	}
+
 	orderID := uuid.Must(uuid.NewV7())
-	orderNo := fmt.Sprintf("ORD-%s-%s", time.Now().Format("060102"), strings.ToUpper(orderID.String()[:4]))
+	orderNo := fmt.Sprintf("ORD-%s-%s", time.Now().Format("060102150405"), strings.ToUpper(orderID.String()[:4]))
 	order := model.Order{
 		ID:            orderID,
 		OrderNo:       orderNo,
@@ -57,7 +63,7 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 	totalTax := decimal.NewFromInt(0)
 
 	for _, reqItem := range req.Items {
-		product, err := oUsecase.pRepo.GetByIDWithTaxes(reqItem.ProductID)
+		product, err := oUsecase.pRepo.GetByID(reqItem.ProductID)
 		if err != nil {
 			return model.Order{}, domain.ErrProductNotFound
 		}
@@ -81,28 +87,30 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 		}
 
 		itemTotalTax := decimal.NewFromInt(0)
-		for _, tax := range product.Taxes {
-			if !tax.IsActive {
-				continue
+		if product.Taxes != nil {
+			for _, tax := range product.Taxes {
+				if !tax.IsActive {
+					continue
+				}
+
+				rateDecimal := tax.Rate.Div(decimal.NewFromInt(100))
+				taxAmount := itemSubTotal.Mul(rateDecimal)
+
+				taxID := tax.ID
+
+				orderItemTax := model.OrderItemTax{
+					ID:          taxID,
+					OrderItemID: orderItemID,
+					TaxID:       &taxID,
+					TaxName:     tax.Name,
+					TaxRate:     tax.Rate,
+					TaxAmount:   taxAmount,
+				}
+
+				orderItem.AppliedTaxes = append(orderItem.AppliedTaxes, orderItemTax)
+
+				itemTotalTax = itemTotalTax.Add(taxAmount)
 			}
-
-			rateDecimal := tax.Rate.Div(decimal.NewFromInt(100))
-			taxAmount := itemSubTotal.Mul(rateDecimal)
-
-			taxID := tax.ID
-
-			orderItemTax := model.OrderItemTax{
-				ID:          taxID,
-				OrderItemID: orderItemID,
-				TaxID:       &taxID,
-				TaxName:     tax.Nama,
-				TaxRate:     tax.Rate,
-				TaxAmount:   taxAmount,
-			}
-
-			orderItem.AppliedTaxes = append(orderItem.AppliedTaxes, orderItemTax)
-
-			itemTotalTax = itemTotalTax.Add(taxAmount)
 		}
 
 		order.Items = append(order.Items, orderItem)
@@ -123,7 +131,7 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 		order.PaidAt = &now
 	}
 
-	order, err := oUsecase.oRepo.Create(order)
+	order, err = oUsecase.oRepo.Create(order)
 	if err != nil {
 		return model.Order{}, err
 	}

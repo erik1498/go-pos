@@ -40,13 +40,15 @@ func main() {
 	pRepo := repository.GetProductRepository(db)
 	mRepo := repository.GetMemberRepository(db)
 	oRepo := repository.GetOrderRepository(db)
+	tRepo := repository.GetTaxRepository(db)
 
 	cUsecase := usecase.GetCategoryUsecase(cRepo)
-	pUsecase := usecase.GetProductUsecase(pRepo, cRepo)
+	pUsecase := usecase.GetProductUsecase(pRepo, cRepo, tRepo)
 	mUsecase := usecase.GetMemberUsecase(mRepo, aesKey, bindexKey)
 	oUsecase := usecase.GetOrderUsecase(oRepo, mRepo, pRepo)
+	tUsecase := usecase.GetTaxUsecase(tRepo)
 
-	handler := rest.NewHandler(cUsecase, pUsecase, mUsecase, oUsecase)
+	handler := rest.NewHandler(cUsecase, pUsecase, mUsecase, oUsecase, tUsecase)
 
 	rest.LoadRoutes(e, handler)
 

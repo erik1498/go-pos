@@ -8,12 +8,11 @@ import (
 )
 
 var (
-	ErrProductNotFound            = errors.New("product data not found")
-	ProductSKUIsAlreadyRegistered = errors.New("product sku is already registered")
+	ErrProductNotFound               = errors.New("product data not found")
+	ErrProductSKUIsAlreadyRegistered = errors.New("product sku is already registered")
 )
 
 type ProductRepository interface {
-	GetByIDWithTaxes(id uuid.UUID) (model.Product, error)
 	GetAll(opts QueryOptions) ([]model.Product, int64, error)
 	Create(product model.Product) (model.Product, error)
 	GetByID(id uuid.UUID) (model.Product, error)

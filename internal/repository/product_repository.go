@@ -22,19 +22,6 @@ func GetProductRepository(db *gorm.DB) domain.ProductRepository {
 	}
 }
 
-func (pRepo *productRepository) GetByIDWithTaxes(id uuid.UUID) (model.Product, error) {
-	var product model.Product
-
-	err := pRepo.db.First(&product, id).Preload("Taxes").Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.Product{}, domain.ErrProductNotFound
-		}
-		return model.Product{}, err
-	}
-	return product, nil
-}
-
 func (pRepo *productRepository) GetAll(opts domain.QueryOptions) ([]model.Product, int64, error) {
 	var productList []model.Product
 	var totalItems int64
@@ -63,7 +50,7 @@ func (pRepo *productRepository) Create(product model.Product) (model.Product, er
 	if err := pRepo.db.Create(&product).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return model.Product{}, domain.ProductSKUIsAlreadyRegistered
+			return model.Product{}, domain.ErrProductSKUIsAlreadyRegistered
 		}
 		return model.Product{}, err
 	}
@@ -73,7 +60,7 @@ func (pRepo *productRepository) Create(product model.Product) (model.Product, er
 func (pRepo *productRepository) GetByID(id uuid.UUID) (model.Product, error) {
 	var product model.Product
 
-	if err := pRepo.db.First(&product, id).Error; err != nil {
+	if err := pRepo.db.Preload("Taxes").First(&product, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return model.Product{}, domain.ErrProductNotFound
 		}
