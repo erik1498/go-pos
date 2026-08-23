@@ -25,8 +25,18 @@ type User struct {
 	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
-type RegisterUser struct {
+type UserSession struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RegisterRequest struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type LoginRequest struct {
+	Username string `json:"username"`
 	Password string `json:"password"`
 }

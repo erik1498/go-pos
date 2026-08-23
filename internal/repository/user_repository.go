@@ -31,3 +31,14 @@ func (uRepo *userRepository) Register(user model.User) (model.User, error) {
 	}
 	return user, nil
 }
+
+func (uRepo *userRepository) GetByUsername(username string) (model.User, error) {
+	var user model.User
+	if err := uRepo.db.First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return model.User{}, domain.ErrUsernameOrPasswordInvalid
+		}
+		return model.User{}, err
+	}
+	return user, nil
+}

@@ -6,6 +6,7 @@ import (
 	"go-pos/internal/domain"
 	"go-pos/internal/repository"
 	"go-pos/internal/usecase"
+	"go-pos/pkg/utils"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -23,6 +24,11 @@ func main() {
 
 	aesKey := os.Getenv("AES_256_KEY")
 	bindexKey := os.Getenv("BLIND_INDEX_KEY")
+
+	rsaPrivateKey, err := utils.LoadRSAPrivateKey()
+	if err != nil {
+		panic(err)
+	}
 
 	if len(aesKey) != 32 {
 		panic(domain.AlertAESNot32Character)
@@ -48,7 +54,7 @@ func main() {
 	mUsecase := usecase.GetMemberUsecase(mRepo, aesKey, bindexKey)
 	oUsecase := usecase.GetOrderUsecase(oRepo, mRepo, pRepo)
 	tUsecase := usecase.GetTaxUsecase(tRepo)
-	uUsecase := usecase.GetUserUsecase(uRepo, aesKey, bindexKey)
+	uUsecase := usecase.GetUserUsecase(uRepo, aesKey, bindexKey, rsaPrivateKey)
 
 	handler := rest.NewHandler(cUsecase, pUsecase, mUsecase, oUsecase, tUsecase, uUsecase)
 

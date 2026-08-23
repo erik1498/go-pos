@@ -12,7 +12,7 @@ import (
 )
 
 func (h *handler) RegisterUser(c echo.Context) error {
-	var req model.RegisterUser
+	var req model.RegisterRequest
 
 	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
@@ -27,4 +27,22 @@ func (h *handler) RegisterUser(c echo.Context) error {
 	}
 
 	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, user)
+}
+
+func (h *handler) LoginUser(c echo.Context) error {
+	var req model.LoginRequest
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
+		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
+	}
+
+	userSession, err := h.uUsecase.Login(req)
+	if err != nil {
+		if errors.Is(err, domain.ErrUsernameOrPasswordInvalid) {
+			return response.ErrBadRequest(c, domain.ErrUsernameOrPasswordInvalid.Error())
+		}
+		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
+	}
+
+	return response.Success(c, http.StatusOK, domain.SuccessLogin, userSession)
 }

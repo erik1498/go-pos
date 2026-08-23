@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -141,4 +143,41 @@ func HashPassword(password string, aesKey []byte) (string, error) {
 	encodedHash := fmt.Sprintf(cipherFormat, argon2.Version, p.memory, p.time, p.threads, b64Hash, b64Salt)
 
 	return encodedHash, nil
+}
+
+func VerifyPassword(password string, hash string, aesKey []byte) (bool, error) {
+	parts := strings.Split(hash, "$")
+
+	var memory, time uint32
+	var threads uint8
+
+	switch parts[1] {
+	case "argon2id":
+		_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &time, &threads)
+		if err != nil {
+			return false, err
+		}
+
+		salt, err := base64.RawStdEncoding.DecodeString(parts[5])
+		if err != nil {
+			return false, err
+		}
+
+		hash, err := base64.RawStdEncoding.DecodeString(parts[4])
+		if err != nil {
+			return false, err
+		}
+
+		decryptHash, err := DecryptAES(hash, aesKey)
+		if err != nil {
+			return false, err
+		}
+
+		keyLen := uint32(len(decryptHash))
+
+		comparisonHash := argon2.IDKey([]byte(password), salt, time, memory, threads, keyLen)
+
+		return subtle.ConstantTimeCompare(comparisonHash, []byte(decryptHash)) == 1, nil
+	}
+	return true, nil
 }

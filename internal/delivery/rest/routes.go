@@ -37,4 +37,5 @@ func LoadRoutes(e *echo.Echo, h *handler) {
 
 	userGroup := e.Group("/users")
 	userGroup.POST("/register", h.RegisterUser)
+	userGroup.POST("/login", h.LoginUser)
 }
