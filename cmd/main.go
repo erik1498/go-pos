@@ -30,6 +30,11 @@ func main() {
 		panic(err)
 	}
 
+	rsaPublicKey, err := utils.LoadRSAPublicKey()
+	if err != nil {
+		panic(err)
+	}
+
 	if len(aesKey) != 32 {
 		panic(domain.AlertAESNot32Character)
 	}
@@ -54,7 +59,7 @@ func main() {
 	mUsecase := usecase.GetMemberUsecase(mRepo, aesKey, bindexKey)
 	oUsecase := usecase.GetOrderUsecase(oRepo, mRepo, pRepo)
 	tUsecase := usecase.GetTaxUsecase(tRepo)
-	uUsecase := usecase.GetUserUsecase(uRepo, aesKey, bindexKey, rsaPrivateKey)
+	uUsecase := usecase.GetUserUsecase(uRepo, aesKey, bindexKey, rsaPrivateKey, rsaPublicKey)
 
 	handler := rest.NewHandler(cUsecase, pUsecase, mUsecase, oUsecase, tUsecase, uUsecase)
 

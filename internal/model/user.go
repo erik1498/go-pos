@@ -11,6 +11,7 @@ type UserRole string
 const (
 	UserRoleCashier UserRole = "CASHIER"
 	UserRoleAdmin   UserRole = "ADMIN"
+	AuthContextKey  string   = "user_auth"
 )
 
 type User struct {

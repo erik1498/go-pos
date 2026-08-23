@@ -10,18 +10,20 @@ import (
 )
 
 type userUsecase struct {
-	uRepo     domain.UserRepository
-	aesKey    []byte
-	rsa256key *rsa.PrivateKey
-	bindexKey string
+	uRepo            domain.UserRepository
+	aesKey           []byte
+	rsa256PrivateKey *rsa.PrivateKey
+	rsa256PublicKey  *rsa.PublicKey
+	bindexKey        string
 }
 
-func GetUserUsecase(uRepo domain.UserRepository, aesKey, bindexKey string, rsa256Key *rsa.PrivateKey) domain.UserUsecase {
+func GetUserUsecase(uRepo domain.UserRepository, aesKey, bindexKey string, rsa256PrivateKey *rsa.PrivateKey, rsa256PublicKey *rsa.PublicKey) domain.UserUsecase {
 	return &userUsecase{
-		uRepo:     uRepo,
-		aesKey:    []byte(aesKey),
-		rsa256key: rsa256Key,
-		bindexKey: bindexKey,
+		uRepo:            uRepo,
+		aesKey:           []byte(aesKey),
+		rsa256PrivateKey: rsa256PrivateKey,
+		rsa256PublicKey:  rsa256PublicKey,
+		bindexKey:        bindexKey,
 	}
 }
 
@@ -72,12 +74,12 @@ func (uUsecase *userUsecase) Login(req model.LoginRequest) (model.UserSession, e
 		return model.UserSession{}, domain.ErrUsernameOrPasswordInvalid
 	}
 
-	accessToken, err := utils.GenerateAccessToken(user.ID, user.Username, string(user.Role), uUsecase.rsa256key)
+	accessToken, err := utils.GenerateAccessToken(user.ID, user.Username, string(user.Role), uUsecase.rsa256PrivateKey)
 	if err != nil {
 		return model.UserSession{}, err
 	}
 
-	refreshToken, err := utils.GenerateRefreshToken(user.ID, uUsecase.rsa256key)
+	refreshToken, err := utils.GenerateRefreshToken(user.ID, uUsecase.rsa256PrivateKey)
 	if err != nil {
 		return model.UserSession{}, err
 	}
@@ -86,4 +88,12 @@ func (uUsecase *userUsecase) Login(req model.LoginRequest) (model.UserSession, e
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+func (uUsecase *userUsecase) CheckSession(userSession model.UserSession) (string, error) {
+	userID, err := utils.GetClaimsFromAccessToken(userSession.AccessToken, uUsecase.rsa256PublicKey)
+	if err != nil {
+		return "", err
+	}
+	return userID, nil
 }

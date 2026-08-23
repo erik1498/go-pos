@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrUsernameOrPasswordInvalid = errors.New("username or password invalid")
+	ErrUnauthorized              = errors.New("unauthorized")
 
 	SuccessLogin = "login success"
 )
@@ -19,4 +20,5 @@ type UserRepository interface {
 type UserUsecase interface {
 	Register(req model.RegisterRequest) (model.User, error)
 	Login(req model.LoginRequest) (model.UserSession, error)
+	CheckSession(userSession model.UserSession) (string, error)
 }

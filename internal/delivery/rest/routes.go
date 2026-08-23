@@ -3,8 +3,10 @@ package rest
 import "github.com/labstack/echo/v4"
 
 func LoadRoutes(e *echo.Echo, h *handler) {
+	am := GetAuthMiddleware(h.uUsecase)
+
 	categoryGroup := e.Group("/categories")
-	categoryGroup.GET("", h.GetAllCategory)
+	categoryGroup.GET("", h.GetAllCategory, am.CheckAuth)
 	categoryGroup.POST("", h.CreateCategory)
 	categoryGroup.GET("/:id", h.GetCategoryByID)
 	categoryGroup.PUT("/:id", h.UpdateCategoryById)

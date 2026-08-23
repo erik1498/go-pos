@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"errors"
+	"go-pos/internal/domain"
 	"os"
 	"time"
 
@@ -18,7 +19,7 @@ type jwtCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateAccessToken(userID uuid.UUID, username, role string, secretKey *rsa.PrivateKey) (string, error) {
+func GenerateAccessToken(userID uuid.UUID, username, role string, secretPrivateKey *rsa.PrivateKey) (string, error) {
 	now := time.Now()
 	accessClaims := jwtCustomClaims{
 		UserID:   userID.String(),
@@ -34,10 +35,10 @@ func GenerateAccessToken(userID uuid.UUID, username, role string, secretKey *rsa
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 
-	return accessJwt.SignedString(secretKey)
+	return accessJwt.SignedString(secretPrivateKey)
 }
 
-func GenerateRefreshToken(userID uuid.UUID, secretKey *rsa.PrivateKey) (string, error) {
+func GenerateRefreshToken(userID uuid.UUID, secretPrivateKey *rsa.PrivateKey) (string, error) {
 	now := time.Now()
 	accessClaims := jwt.RegisteredClaims{
 		Subject:   userID.String(),
@@ -48,7 +49,7 @@ func GenerateRefreshToken(userID uuid.UUID, secretKey *rsa.PrivateKey) (string, 
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 
-	return accessJwt.SignedString(secretKey)
+	return accessJwt.SignedString(secretPrivateKey)
 }
 
 func LoadRSAPrivateKey() (*rsa.PrivateKey, error) {
@@ -87,4 +88,24 @@ func LoadRSAPublicKey() (*rsa.PublicKey, error) {
 	}
 
 	return publicKey, nil
+}
+
+func GetClaimsFromAccessToken(token string, secretPublicKey *rsa.PublicKey) (string, error) {
+	accessToken, err := jwt.ParseWithClaims(token, &jwtCustomClaims{}, func(t *jwt.Token) (any, error) {
+		return secretPublicKey, nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	accessTokenClaims, ok := accessToken.Claims.(*jwtCustomClaims)
+	if !ok {
+		return "", domain.ErrUnauthorized
+	}
+
+	if accessToken.Valid {
+		return accessTokenClaims.UserID, nil
+	}
+
+	return "", domain.ErrUnauthorized
 }
