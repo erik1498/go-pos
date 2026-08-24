@@ -1,6 +1,10 @@
 package rest
 
-import "github.com/labstack/echo/v4"
+import (
+	"go-pos/internal/model"
+
+	"github.com/labstack/echo/v4"
+)
 
 func LoadRoutes(e *echo.Echo, h *handler) {
 	am := GetAuthMiddleware(h.uUsecase)
@@ -16,34 +20,34 @@ func LoadRoutes(e *echo.Echo, h *handler) {
 	apiPrivateGroup.Use(am.CheckAuth)
 
 	categoryGroup := apiPrivateGroup.Group("/categories")
-	categoryGroup.GET("", h.GetAllCategory)
-	categoryGroup.POST("", h.CreateCategory)
-	categoryGroup.GET("/:id", h.GetCategoryByID)
-	categoryGroup.PUT("/:id", h.UpdateCategoryById)
-	categoryGroup.DELETE("/:id", h.DeleteCategoryByID)
+	categoryGroup.GET("", h.GetAllCategory, am.RequiredRoles(string(model.UserRoleAdmin)))
+	categoryGroup.POST("", h.CreateCategory, am.RequiredRoles(string(model.UserRoleAdmin)))
+	categoryGroup.GET("/:id", h.GetCategoryByID, am.RequiredRoles(string(model.UserRoleAdmin)))
+	categoryGroup.PUT("/:id", h.UpdateCategoryById, am.RequiredRoles(string(model.UserRoleAdmin)))
+	categoryGroup.DELETE("/:id", h.DeleteCategoryByID, am.RequiredRoles(string(model.UserRoleAdmin)))
 
 	productGroup := apiPrivateGroup.Group("/products")
-	productGroup.GET("", h.GetAllProduct)
-	productGroup.POST("", h.CreateProduct)
-	productGroup.GET("/:id", h.GetProductByID)
-	productGroup.PUT("/:id", h.UpdateProductByID)
-	productGroup.DELETE("/:id", h.DeleteProductByID)
+	productGroup.GET("", h.GetAllProduct, am.RequiredRoles(string(model.UserRoleAdmin)))
+	productGroup.POST("", h.CreateProduct, am.RequiredRoles(string(model.UserRoleAdmin)))
+	productGroup.GET("/:id", h.GetProductByID, am.RequiredRoles(string(model.UserRoleAdmin)))
+	productGroup.PUT("/:id", h.UpdateProductByID, am.RequiredRoles(string(model.UserRoleAdmin)))
+	productGroup.DELETE("/:id", h.DeleteProductByID, am.RequiredRoles(string(model.UserRoleAdmin)))
 
 	memberGroup := apiPrivateGroup.Group("/members")
-	memberGroup.GET("", h.GetAllMember)
-	memberGroup.POST("", h.CreateMember)
-	memberGroup.GET("/:id", h.GetMemberByID)
-	memberGroup.PUT("/:id", h.UpdateMemberByID)
-	memberGroup.DELETE("/:id", h.DeleteMemberByID)
+	memberGroup.GET("", h.GetAllMember, am.RequiredRoles(string(model.UserRoleAdmin)))
+	memberGroup.POST("", h.CreateMember, am.RequiredRoles(string(model.UserRoleAdmin)))
+	memberGroup.GET("/:id", h.GetMemberByID, am.RequiredRoles(string(model.UserRoleAdmin)))
+	memberGroup.PUT("/:id", h.UpdateMemberByID, am.RequiredRoles(string(model.UserRoleAdmin)))
+	memberGroup.DELETE("/:id", h.DeleteMemberByID, am.RequiredRoles(string(model.UserRoleAdmin)))
 
 	orderGroup := apiPrivateGroup.Group("/orders")
-	orderGroup.GET("", h.GetAllOrder)
-	orderGroup.POST("", h.CreateOrder)
+	orderGroup.GET("", h.GetAllOrder, am.RequiredRoles(string(model.UserRoleAdmin)))
+	orderGroup.POST("", h.CreateOrder, am.RequiredRoles(string(model.UserRoleAdmin)))
 
 	taxGroup := apiPrivateGroup.Group("/taxes")
-	taxGroup.GET("", h.GetAllTax)
-	taxGroup.POST("", h.CreateTax)
-	taxGroup.GET("/:id", h.GetTaxByID)
-	taxGroup.PUT("/:id", h.UpdateTaxByID)
-	taxGroup.DELETE("/:id", h.DeleteTaxByID)
+	taxGroup.GET("", h.GetAllTax, am.RequiredRoles(string(model.UserRoleAdmin)))
+	taxGroup.POST("", h.CreateTax, am.RequiredRoles(string(model.UserRoleAdmin)))
+	taxGroup.GET("/:id", h.GetTaxByID, am.RequiredRoles(string(model.UserRoleAdmin)))
+	taxGroup.PUT("/:id", h.UpdateTaxByID, am.RequiredRoles(string(model.UserRoleAdmin)))
+	taxGroup.DELETE("/:id", h.DeleteTaxByID, am.RequiredRoles(string(model.UserRoleAdmin)))
 }

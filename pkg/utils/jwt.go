@@ -90,22 +90,22 @@ func LoadRSAPublicKey() (*rsa.PublicKey, error) {
 	return publicKey, nil
 }
 
-func GetClaimsFromAccessToken(token string, secretPublicKey *rsa.PublicKey) (string, error) {
+func GetClaimsFromAccessToken(token string, secretPublicKey *rsa.PublicKey) (string, string, error) {
 	accessToken, err := jwt.ParseWithClaims(token, &jwtCustomClaims{}, func(t *jwt.Token) (any, error) {
 		return secretPublicKey, nil
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	accessTokenClaims, ok := accessToken.Claims.(*jwtCustomClaims)
 	if !ok {
-		return "", domain.ErrUnauthorized
+		return "", "", domain.ErrUnauthorized
 	}
 
 	if accessToken.Valid {
-		return accessTokenClaims.UserID, nil
+		return accessTokenClaims.UserID, accessTokenClaims.Role, nil
 	}
 
-	return "", domain.ErrUnauthorized
+	return "", "", domain.ErrUnauthorized
 }

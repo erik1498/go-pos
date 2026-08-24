@@ -43,7 +43,7 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
-		userID, err := am.uUsecase.CheckSession(userSession)
+		userID, role, err := am.uUsecase.CheckSession(userSession)
 		if err != nil {
 			return &echo.HTTPError{
 				Code:     http.StatusUnauthorized,
@@ -55,11 +55,43 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 		authContext := context.WithValue(c.Request().Context(), model.AuthContextKey, userID)
 		c.SetRequest(c.Request().WithContext(authContext))
 		c.Set("userID", userID)
+		c.Set("userRole", role)
 
 		if err := next(c); err != nil {
 			return err
 		}
 
 		return nil
+	}
+}
+
+func (am *authMiddleware) RequiredRoles(allowedRoles ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			userRole, ok := c.Get("userRole").(string)
+			if !ok || userRole == "" {
+				return &echo.HTTPError{
+					Code:    http.StatusForbidden,
+					Message: domain.ErrForbidden,
+				}
+			}
+
+			isAllowed := false
+			for _, allowed := range allowedRoles {
+				if userRole == allowed {
+					isAllowed = true
+					break
+				}
+			}
+
+			if !isAllowed {
+				return &echo.HTTPError{
+					Code:    http.StatusForbidden,
+					Message: domain.ErrForbidden,
+				}
+			}
+
+			return next(c)
+		}
 	}
 }

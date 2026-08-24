@@ -90,10 +90,10 @@ func (uUsecase *userUsecase) Login(req model.LoginRequest) (model.UserSession, e
 	}, nil
 }
 
-func (uUsecase *userUsecase) CheckSession(userSession model.UserSession) (string, error) {
-	userID, err := utils.GetClaimsFromAccessToken(userSession.AccessToken, uUsecase.rsa256PublicKey)
+func (uUsecase *userUsecase) CheckSession(userSession model.UserSession) (string, string, error) {
+	userID, role, err := utils.GetClaimsFromAccessToken(userSession.AccessToken, uUsecase.rsa256PublicKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return userID, nil
+	return userID, role, nil
 }
