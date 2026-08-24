@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
@@ -80,16 +81,24 @@ func (cRepo *categoryRepo) UpdateCategoryByID(id uuid.UUID, category model.Categ
 	return category, nil
 }
 
-func (cRepo *categoryRepo) DeleteCategoryByID(id uuid.UUID) error {
-	res := cRepo.db.Delete(&model.Category{}, id)
+func (cRepo *categoryRepo) DeleteCategoryByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
+	err := cRepo.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Category{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+			return err
+		}
 
-	if res.Error != nil {
-		return res.Error
-	}
+		res := tx.Delete(&model.Category{}, id)
 
-	if res.RowsAffected == 0 {
-		return domain.ErrCategoryNotFound
-	}
+		if res.Error != nil {
+			return res.Error
+		}
 
-	return nil
+		if res.RowsAffected == 0 {
+			return domain.ErrCategoryNotFound
+		}
+
+		return nil
+	})
+
+	return err
 }

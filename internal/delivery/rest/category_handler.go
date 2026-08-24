@@ -73,14 +73,15 @@ func (h *handler) UpdateCategoryById(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
-	var req model.Category
+	var req model.CategoryRequest
 
 	err = json.NewDecoder(c.Request().Body).Decode(&req)
 	if err != nil {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	category, err := h.cUsecase.UpdateCategoryByID(ID, req)
+	ctx := c.Request().Context()
+	category, err := h.cUsecase.UpdateCategoryByID(ctx, ID, req)
 	if err != nil {
 
 		if errors.Is(err, domain.ErrCategoryNotFound) {
@@ -101,7 +102,9 @@ func (h *handler) DeleteCategoryByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
-	err = h.cUsecase.DeleteCategoryByID(ID)
+	ctx := c.Request().Context()
+
+	err = h.cUsecase.DeleteCategoryByID(ctx, ID)
 	if err != nil {
 
 		if errors.Is(err, domain.ErrCategoryNotFound) {

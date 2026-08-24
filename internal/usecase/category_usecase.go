@@ -39,26 +39,33 @@ func (cUsecase *categoryUsecase) GetAll(opts domain.QueryOptions) ([]model.Categ
 }
 
 func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.Category) (model.Category, error) {
-	category := model.Category{
-		ID:   uuid.Must(uuid.NewV7()),
-		Name: req.Name,
+	meta, metaValid := ctx.Value(rest.AuditMetaKey).(rest.AuditMeta)
+	var actorID uuid.UUID
+	if metaValid {
+		actorID = uuid.MustParse(meta.UserID)
 	}
 
-	createdCategory, err := cUsecase.cRepo.Create(category)
+	category := model.Category{
+		ID:        uuid.Must(uuid.NewV7()),
+		Name:      req.Name,
+		CreatedBy: actorID,
+		UpdatedBy: actorID,
+	}
+
+	category, err := cUsecase.cRepo.Create(category)
 	if err != nil {
 		return model.Category{}, err
 	}
 
-	meta, ok := ctx.Value(rest.AuditMetaKey).(rest.AuditMeta)
-	if ok {
-		newValueJSON, _ := json.Marshal(createdCategory)
+	if metaValid {
+		newValueJSON, _ := json.Marshal(category)
 
 		auditLog := model.AuditLog{
-			ActorID:   uuid.MustParse(meta.UserID),
+			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "CREATE",
 			Entity:    "categories",
-			EntityID:  createdCategory.ID.String(),
+			EntityID:  category.ID.String(),
 			OldValues: "null",
 			NewValues: string(newValueJSON),
 			IPAddress: meta.IPAddress,
@@ -69,17 +76,57 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.Category)
 			cUsecase.aRepo.Create(context.Background(), logData)
 		}(auditLog)
 	}
-	return createdCategory, nil
+
+	return category, nil
 }
 
 func (cUsecase *categoryUsecase) GetByID(id uuid.UUID) (model.Category, error) {
 	return cUsecase.cRepo.GetByID(id)
 }
 
-func (cUsecase *categoryUsecase) UpdateCategoryByID(id uuid.UUID, req model.Category) (model.Category, error) {
-	return cUsecase.cRepo.UpdateCategoryByID(id, req)
+func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid.UUID, req model.CategoryRequest) (model.Category, error) {
+	meta, metaValid := ctx.Value(rest.AuditMetaKey).(rest.AuditMeta)
+	var actorID uuid.UUID
+	if metaValid {
+		actorID = uuid.MustParse(meta.UserID)
+	}
+
+	category := model.Category{
+		ID:        id,
+		Name:      req.Name,
+		UpdatedBy: actorID,
+	}
+
+	return cUsecase.cRepo.UpdateCategoryByID(id, category)
 }
 
-func (cUsecase *categoryUsecase) DeleteCategoryByID(id uuid.UUID) error {
-	return cUsecase.cRepo.DeleteCategoryByID(id)
+func (cUsecase *categoryUsecase) DeleteCategoryByID(ctx context.Context, id uuid.UUID) error {
+	meta, metaValid := ctx.Value(rest.AuditMetaKey).(rest.AuditMeta)
+	var actorID uuid.UUID
+	if metaValid {
+		actorID = uuid.MustParse(meta.UserID)
+	}
+
+	err := cUsecase.cRepo.DeleteCategoryByID(ctx, id, actorID)
+	if err != nil {
+		return err
+	}
+
+	if metaValid {
+		auditLog := model.AuditLog{
+			ActorID:   actorID,
+			ActorRole: meta.Role,
+			Action:    "DELETE",
+			Entity:    "categories",
+			EntityID:  id.String(),
+			OldValues: "{}",
+			NewValues: "null",
+			IPAddress: meta.IPAddress,
+			UserAgent: meta.UserAgent,
+		}
+		go func(logData model.AuditLog) {
+			cUsecase.aRepo.Create(context.Background(), logData)
+		}(auditLog)
+	}
+	return nil
 }
