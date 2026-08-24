@@ -34,7 +34,9 @@ func (h *handler) CreateCategory(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	category, err := h.cUsecase.Create(req)
+	ctx := c.Request().Context()
+
+	category, err := h.cUsecase.Create(ctx, req)
 
 	if err != nil {
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())

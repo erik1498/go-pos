@@ -10,6 +10,17 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+type ContextKey string
+
+const AuditMetaKey ContextKey = "audit_meta"
+
+type AuditMeta struct {
+	UserID    string
+	Role      string
+	IPAddress string
+	UserAgent string
+}
+
 type authMiddleware struct {
 	uUsecase domain.UserUsecase
 }
@@ -51,9 +62,20 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 				Message:  domain.ErrSessionExpired.Error(),
 			}
 		}
+		ipAddr := c.RealIP()
+		userAgent := c.Request().UserAgent()
+
+		auditMeta := AuditMeta{
+			UserID:    userID,
+			Role:      role,
+			IPAddress: ipAddr,
+			UserAgent: userAgent,
+		}
 
 		authContext := context.WithValue(c.Request().Context(), model.AuthContextKey, userID)
-		c.SetRequest(c.Request().WithContext(authContext))
+		auditContext := context.WithValue(authContext, AuditMetaKey, auditMeta)
+		c.SetRequest(c.Request().WithContext(auditContext))
+
 		c.Set("userID", userID)
 		c.Set("userRole", role)
 

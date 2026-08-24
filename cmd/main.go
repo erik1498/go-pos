@@ -53,8 +53,9 @@ func main() {
 	oRepo := repository.GetOrderRepository(db)
 	tRepo := repository.GetTaxRepository(db)
 	uRepo := repository.GetUserRepository(db)
+	aRepo := repository.GetAuditLogRepository(db)
 
-	cUsecase := usecase.GetCategoryUsecase(cRepo)
+	cUsecase := usecase.GetCategoryUsecase(cRepo, aRepo)
 	pUsecase := usecase.GetProductUsecase(pRepo, cRepo, tRepo)
 	mUsecase := usecase.GetMemberUsecase(mRepo, aesKey, bindexKey)
 	oUsecase := usecase.GetOrderUsecase(oRepo, mRepo, pRepo)

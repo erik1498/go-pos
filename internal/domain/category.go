@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/model"
 
@@ -20,7 +21,7 @@ type CategoryRepository interface {
 }
 
 type CategoryUsecase interface {
-	Create(category model.Category) (model.Category, error)
+	Create(context context.Context, req model.Category) (model.Category, error)
 	GetByID(id uuid.UUID) (model.Category, error)
 	GetAll(opts QueryOptions) ([]model.Category, int64, error)
 	UpdateCategoryByID(id uuid.UUID, req model.Category) (model.Category, error)

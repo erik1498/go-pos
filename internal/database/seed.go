@@ -16,5 +16,6 @@ func seedDB(db *gorm.DB) {
 		&model.OrderItemTax{},
 		&model.Tax{},
 		&model.User{},
+		&model.AuditLog{},
 	)
 }
