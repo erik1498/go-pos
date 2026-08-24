@@ -87,7 +87,19 @@ func (pUsecase *productUsecase) UpdateByID(id uuid.UUID, req model.ProductReques
 		Name:       req.Name,
 		SKU:        req.SKU,
 		Price:      req.Price,
+		Taxes:      []model.Tax{},
 	}
+
+	var taxes []model.Tax
+	for _, item := range req.Tax {
+		tax, err := pUsecase.tRepo.GetByID(item.ID)
+		if err != nil {
+			return model.Product{}, domain.ErrTaxNotFound
+		}
+		taxes = append(taxes, tax)
+	}
+
+	product.Taxes = taxes
 
 	product, err = pUsecase.pRepo.UpdateByID(id, product)
 	if err != nil {

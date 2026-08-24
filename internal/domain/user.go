@@ -8,6 +8,7 @@ import (
 var (
 	ErrUsernameOrPasswordInvalid = errors.New("username or password invalid")
 	ErrUnauthorized              = errors.New("unauthorized")
+	ErrSessionExpired            = errors.New("user session invalid or expired")
 
 	SuccessLogin = "login success"
 )

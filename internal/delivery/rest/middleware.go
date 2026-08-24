@@ -39,7 +39,7 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			return &echo.HTTPError{
 				Code:     http.StatusUnauthorized,
 				Internal: err,
-				Message:  err.Error(),
+				Message:  domain.ErrSessionExpired.Error(),
 			}
 		}
 
@@ -48,12 +48,14 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			return &echo.HTTPError{
 				Code:     http.StatusUnauthorized,
 				Internal: err,
-				Message:  err.Error(),
+				Message:  domain.ErrSessionExpired.Error(),
 			}
 		}
 
 		authContext := context.WithValue(c.Request().Context(), model.AuthContextKey, userID)
 		c.SetRequest(c.Request().WithContext(authContext))
+		c.Set("userID", userID)
+
 		if err := next(c); err != nil {
 			return err
 		}

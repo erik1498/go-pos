@@ -71,15 +71,31 @@ func (pRepo *productRepository) GetByID(id uuid.UUID) (model.Product, error) {
 }
 
 func (pRepo *productRepository) UpdateByID(id uuid.UUID, product model.Product) (model.Product, error) {
-	res := pRepo.db.Where(&model.Product{ID: id}).Clauses(clause.Returning{}).Updates(&product)
-	if res.Error != nil {
-		return model.Product{}, res.Error
-	}
+	product.ID = id
+	err := pRepo.db.Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&product).Clauses(clause.Returning{}).Updates(&product)
+		if res.Error != nil {
+			return res.Error
+		}
 
-	if res.RowsAffected == 0 {
-		return model.Product{}, domain.ErrProductNotFound
-	}
+		if res.RowsAffected == 0 {
+			return domain.ErrProductSKUIsAlreadyRegistered
+		}
 
+		if err := tx.Model(&product).Association("Taxes").Replace(product.Taxes); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return model.Product{}, domain.ErrProductSKUIsAlreadyRegistered
+		}
+		return model.Product{}, err
+	}
 	return product, nil
 }
 

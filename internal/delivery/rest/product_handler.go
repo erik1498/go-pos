@@ -91,6 +91,9 @@ func (h *handler) UpdateProductByID(c echo.Context) error {
 		if errors.Is(err, domain.ErrProductNotFound) {
 			return response.ErrNotFound(c, domain.ErrProductNotFound.Error())
 		}
+		if errors.Is(err, domain.ErrProductSKUIsAlreadyRegistered) {
+			return response.ErrNotFound(c, domain.ErrProductSKUIsAlreadyRegistered.Error())
+		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
