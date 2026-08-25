@@ -2,12 +2,14 @@ package rest
 
 import (
 	"go-pos/internal/model"
+	"go-pos/pkg/middleware"
 
 	"github.com/labstack/echo/v4"
+	"github.com/redis/go-redis/v9"
 )
 
-func LoadRoutes(e *echo.Echo, h *handler) {
-	am := GetAuthMiddleware(h.uUsecase)
+func LoadRoutes(e *echo.Echo, h *handler, rdb *redis.Client) {
+	am := middleware.GetAuthMiddleware(h.uUsecase)
 
 	v1 := e.Group("/api/v1")
 	apiPublic := v1.Group("")
@@ -21,7 +23,7 @@ func LoadRoutes(e *echo.Echo, h *handler) {
 
 	categoryGroup := apiPrivateGroup.Group("/categories")
 	categoryGroup.GET("", h.GetAllCategory, am.RequiredRoles(string(model.UserRoleCashier)))
-	categoryGroup.POST("", h.CreateCategory, am.RequiredRoles(string(model.UserRoleCashier)))
+	categoryGroup.POST("", h.CreateCategory, am.RequiredRoles(string(model.UserRoleCashier)), middleware.Idempotency(rdb))
 	categoryGroup.GET("/:id", h.GetCategoryByID, am.RequiredRoles(string(model.UserRoleCashier)))
 	categoryGroup.PUT("/:id", h.UpdateCategoryById, am.RequiredRoles(string(model.UserRoleCashier)))
 	categoryGroup.DELETE("/:id", h.DeleteCategoryByID, am.RequiredRoles(string(model.UserRoleCashier)))

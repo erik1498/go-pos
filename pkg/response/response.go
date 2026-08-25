@@ -74,6 +74,10 @@ func ErrBadRequest(c echo.Context, detail string) error {
 	return BuildError(c, http.StatusBadRequest, "Bad Request", detail, nil)
 }
 
+func ErrConflictRequest(c echo.Context, detail string) error {
+	return BuildError(c, http.StatusConflict, "Conflict", detail, nil)
+}
+
 func ErrValidation(c echo.Context, detail string, fieldErrors interface{}) error {
 	return BuildError(c, http.StatusUnprocessableEntity, "Validation Failed", detail, fieldErrors)
 }

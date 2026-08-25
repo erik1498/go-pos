@@ -3,9 +3,9 @@ package usecase
 import (
 	"context"
 	"encoding/json"
-	"go-pos/internal/delivery/rest"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
+	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
 
 	"github.com/google/uuid"
@@ -39,7 +39,7 @@ func (cUsecase *categoryUsecase) GetAll(opts domain.QueryOptions) ([]model.Categ
 }
 
 func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.Category) (model.Category, error) {
-	meta, metaValid := ctx.Value(rest.AuditMetaKey).(rest.AuditMeta)
+	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
 		actorID = uuid.MustParse(meta.UserID)
@@ -85,7 +85,7 @@ func (cUsecase *categoryUsecase) GetByID(id uuid.UUID) (model.Category, error) {
 }
 
 func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid.UUID, req model.CategoryRequest) (model.Category, error) {
-	meta, metaValid := ctx.Value(rest.AuditMetaKey).(rest.AuditMeta)
+	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
 		actorID = uuid.MustParse(meta.UserID)
@@ -101,7 +101,7 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 }
 
 func (cUsecase *categoryUsecase) DeleteCategoryByID(ctx context.Context, id uuid.UUID) error {
-	meta, metaValid := ctx.Value(rest.AuditMetaKey).(rest.AuditMeta)
+	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
 		actorID = uuid.MustParse(meta.UserID)
