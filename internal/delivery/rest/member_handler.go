@@ -39,7 +39,7 @@ func (h *handler) CreateMember(c echo.Context) error {
 		if errors.Is(err, domain.ErrPhoneNumberRequired) {
 			return response.ErrValidation(c, domain.ErrPhoneNumberRequired.Error(), nil)
 		}
-		return response.ErrInternalServer(c, err.Error())
+		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
 	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, member)
@@ -58,7 +58,7 @@ func (h *handler) GetMemberByID(c echo.Context) error {
 		if errors.Is(err, domain.ErrMemberNotFound) {
 			return response.ErrNotFound(c, domain.ErrMemberNotFound.Error())
 		}
-		return response.ErrInternalServer(c, err.Error())
+		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
 	return response.Success(c, http.StatusOK, domain.SuccessGetDataByID, member)

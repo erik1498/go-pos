@@ -79,7 +79,7 @@ func (pRepo *productRepository) UpdateByID(id uuid.UUID, product model.Product) 
 		}
 
 		if res.RowsAffected == 0 {
-			return domain.ErrProductSKUIsAlreadyRegistered
+			return domain.ErrProductNotFound
 		}
 
 		if err := tx.Model(&product).Association("Taxes").Replace(product.Taxes); err != nil {

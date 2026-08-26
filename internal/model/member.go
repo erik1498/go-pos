@@ -9,7 +9,7 @@ import (
 
 type Member struct {
 	ID             uuid.UUID      `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null" json:"id"`
-	MemberCode     string         `gorm:"uniqueIndex;not null;type:varchar(20)" json:"member_code"`
+	MemberCode     string         `gorm:"uniqueIndex;not null;type:varchar(50)" json:"member_code"`
 	NameEncrypted  []byte         `gorm:"type:bytea;not null" json:"-"`
 	PhoneEncrypted []byte         `gorm:"type:bytea;not null" json:"-"`
 	EmailEncrypted []byte         `gorm:"type:bytea;not null" json:"-"`

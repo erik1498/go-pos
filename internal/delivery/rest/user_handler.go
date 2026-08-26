@@ -23,7 +23,7 @@ func (h *handler) RegisterUser(c echo.Context) error {
 		if errors.Is(err, domain.ErrEmailAlreadyRegistered) {
 			return response.ErrBadRequest(c, domain.ErrEmailAlreadyRegistered.Error())
 		}
-		return response.ErrInternalServer(c, err.Error())
+		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
 	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, user)
