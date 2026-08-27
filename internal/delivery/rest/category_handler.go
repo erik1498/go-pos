@@ -27,7 +27,7 @@ func (h *handler) GetAllCategory(c echo.Context) error {
 }
 
 func (h *handler) CreateCategory(c echo.Context) error {
-	var req model.Category
+	var req model.CategoryRequest
 	err := json.NewDecoder(c.Request().Body).Decode(&req)
 
 	if err != nil {

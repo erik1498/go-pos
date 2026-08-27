@@ -21,7 +21,7 @@ type CategoryRepository interface {
 }
 
 type CategoryUsecase interface {
-	Create(ctx context.Context, req model.Category) (model.Category, error)
+	Create(ctx context.Context, req model.CategoryRequest) (model.Category, error)
 	GetByID(id uuid.UUID) (model.Category, error)
 	GetAll(opts QueryOptions) ([]model.Category, int64, error)
 	UpdateCategoryByID(ctx context.Context, id uuid.UUID, req model.CategoryRequest) (model.Category, error)

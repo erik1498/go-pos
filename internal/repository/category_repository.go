@@ -8,6 +8,7 @@ import (
 	"go-pos/pkg/utils"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -48,6 +49,10 @@ func (cRepo *categoryRepo) GetAll(opts domain.QueryOptions) ([]model.Category, i
 
 func (cRepo *categoryRepo) Create(category model.Category) (model.Category, error) {
 	if err := cRepo.db.Create(&category).Error; err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return model.Category{}, domain.ErrIdempotencyKeyDuplicate
+		}
 		return model.Category{}, err
 	}
 

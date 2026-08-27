@@ -38,18 +38,24 @@ func (cUsecase *categoryUsecase) GetAll(opts domain.QueryOptions) ([]model.Categ
 	return cUsecase.cRepo.GetAll(cleanOpts)
 }
 
-func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.Category) (model.Category, error) {
+func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryRequest) (model.Category, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
 		actorID = uuid.MustParse(meta.UserID)
 	}
 
+	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
+	if !ok && idemKey == "" {
+		return model.Category{}, domain.ErrIdempotencyKeyDuplicate
+	}
+
 	category := model.Category{
-		ID:        uuid.Must(uuid.NewV7()),
-		Name:      req.Name,
-		CreatedBy: actorID,
-		UpdatedBy: actorID,
+		ID:             uuid.Must(uuid.NewV7()),
+		Name:           req.Name,
+		CreatedBy:      actorID,
+		UpdatedBy:      actorID,
+		IdempotencyKey: idemKey,
 	}
 
 	category, err := cUsecase.cRepo.Create(category)

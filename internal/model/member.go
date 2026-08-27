@@ -19,6 +19,7 @@ type Member struct {
 	Phone          string         `gorm:"-" json:"phone"`
 	Email          string         `gorm:"-" json:"email,omitempty"`
 	Points         int            `gorm:"not null;default:0;" json:"points"`
+	IdempotencyKey string         `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`

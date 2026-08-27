@@ -15,6 +15,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const IdempotencyKeyCtx = "idempotency_key"
+
 type IdempotencyResponse struct {
 	StatusCode int             `json:"status_code"`
 	Body       json.RawMessage `json:"body"`
@@ -29,7 +31,7 @@ func (w *customResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func Idempotency(rdb *redis.Client) echo.MiddlewareFunc {
+func Idempotency(rdb *redis.Client, idmpID string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			idemKey := c.Request().Header.Get("X-Idempotency-Key")
@@ -38,12 +40,16 @@ func Idempotency(rdb *redis.Client) echo.MiddlewareFunc {
 			}
 
 			ctx := c.Request().Context()
-			redisKey := "idempotency" + idemKey
+			redisKey := "idmp:" + idmpID + ":" + idemKey
 
 			cachedData, err := rdb.Get(ctx, redisKey).Result()
 			if err != nil && err != redis.Nil {
 				log.Printf("REDIS DISCONNECTED, ERR: %v", err)
-				next(c)
+
+				newCtx := context.WithValue(ctx, IdempotencyKeyCtx, idemKey)
+				c.SetRequest(c.Request().WithContext(newCtx))
+
+				return next(c)
 			}
 
 			if err == nil {
@@ -60,8 +66,11 @@ func Idempotency(rdb *redis.Client) echo.MiddlewareFunc {
 			locked, err := rdb.SetNX(ctx, redisKey, "PROCESSING", 24*time.Hour).Result()
 			if err != nil {
 				log.Printf("REDIS SETNX FAILED, ERR: %v", err)
-				next(c)
+				newCtx := context.WithValue(ctx, IdempotencyKeyCtx, idemKey)
+				c.SetRequest(c.Request().WithContext(newCtx))
+				return next(c)
 			}
+
 			if !locked {
 				return response.ErrConflictRequest(c, domain.ErrRequestProcessed.Error())
 			}
@@ -70,6 +79,9 @@ func Idempotency(rdb *redis.Client) echo.MiddlewareFunc {
 			mw := io.MultiWriter(c.Response().Writer, resBody)
 			writer := &customResponseWriter{Writer: mw, ResponseWriter: c.Response().Writer}
 			c.Response().Writer = writer
+
+			newCtx := context.WithValue(ctx, IdempotencyKeyCtx, idemKey)
+			c.SetRequest(c.Request().WithContext(newCtx))
 
 			err = next(c)
 
@@ -80,13 +92,14 @@ func Idempotency(rdb *redis.Client) echo.MiddlewareFunc {
 				}
 				finalJSON, _ := json.Marshal(finalResp)
 				go func(key string, data []byte) {
-					_ = rdb.Set(context.Background(), redisKey, finalJSON, 24*time.Hour).Err()
+					_ = rdb.Set(context.Background(), key, data, 24*time.Hour).Err()
 				}(redisKey, finalJSON)
 			} else {
 				go func(key string) {
 					_ = rdb.Del(context.Background(), key).Err()
 				}(redisKey)
 			}
+
 			return err
 		}
 	}

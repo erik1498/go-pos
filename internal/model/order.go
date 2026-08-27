@@ -40,28 +40,31 @@ type Order struct {
 	SubTotal              decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"sub_total"`
 	TotalTax              decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"total_tax"`
 	GrandTotal            decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"grand_total"`
+	IdempotencyKey        string          `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
 	CreatedAt             time.Time       `gorm:"autoCreateTime" json:"created_at"`
 	Items                 []OrderItem     `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE;OnDelete:CASCADE" json:"items"`
 }
 
 type OrderItem struct {
-	ID           uuid.UUID       `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null" json:"id"`
-	OrderID      uuid.UUID       `gorm:"type:uuid;not null;index" json:"order_id"`
-	ProductID    uuid.UUID       `gorm:"type:uuid;not null;index" json:"product_id"`
-	ProductName  string          `gorm:"type:varchar(150);not null" json:"product_name"`
-	BasePrice    decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"base_price"`
-	Qty          decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"qty"`
-	SubTotal     decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"sub_total"`
-	AppliedTaxes []OrderItemTax  `gorm:"foreignKey:OrderItemID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"applied_taxes"`
+	ID             uuid.UUID       `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null" json:"id"`
+	OrderID        uuid.UUID       `gorm:"type:uuid;not null;index" json:"order_id"`
+	ProductID      uuid.UUID       `gorm:"type:uuid;not null;index" json:"product_id"`
+	ProductName    string          `gorm:"type:varchar(150);not null" json:"product_name"`
+	BasePrice      decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"base_price"`
+	Qty            decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"qty"`
+	SubTotal       decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"sub_total"`
+	IdempotencyKey string          `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
+	AppliedTaxes   []OrderItemTax  `gorm:"foreignKey:OrderItemID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"applied_taxes"`
 }
 
 type OrderItemTax struct {
-	ID          uuid.UUID       `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null" json:"id"`
-	OrderItemID uuid.UUID       `gorm:"type:uuid;not null;index" json:"order_item_id"`
-	TaxID       *uuid.UUID      `gorm:"type:uuid" json:"tax_id"`
-	TaxName     string          `gorm:"type:varchar(50);not null" json:"tax_name"`
-	TaxRate     decimal.Decimal `gorm:"type:numeric(5,2);not null" json:"tax_rate"`
-	TaxAmount   decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"tax_amount"`
+	ID             uuid.UUID       `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null" json:"id"`
+	OrderItemID    uuid.UUID       `gorm:"type:uuid;not null;index" json:"order_item_id"`
+	TaxID          *uuid.UUID      `gorm:"type:uuid" json:"tax_id"`
+	TaxName        string          `gorm:"type:varchar(50);not null" json:"tax_name"`
+	TaxRate        decimal.Decimal `gorm:"type:numeric(5,2);not null" json:"tax_rate"`
+	IdempotencyKey string          `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
+	TaxAmount      decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"tax_amount"`
 }
 
 type CreateOrderRequest struct {
