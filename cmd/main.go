@@ -7,8 +7,9 @@ import (
 	"go-pos/internal/domain"
 	"go-pos/internal/repository"
 	"go-pos/internal/usecase"
+	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
-	"log"
+	"log/slog" // Beralih penuh ke slog
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	echoMid "github.com/labstack/echo/v4/middleware"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -48,36 +50,43 @@ func initRedis() *redis.Client {
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
-		log.Fatalf("REDIS: CONNECTION FAILED %s:%s. ERR: %v", host, port, err)
+		slog.Error("REDIS: CONNECTION FAILED", slog.String("host", host), slog.String("port", port), slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
-	log.Println("REDIS: CONNECTED")
+	slog.Info("REDIS: CONNECTED")
 	return client
 }
 
 func main() {
+	middleware.InitSlog()
+
 	if err := godotenv.Load(); err != nil {
-		log.Println("INFO: .env not found.")
+		slog.Info(".env not found. Using system environment variables.")
 	}
 
 	aesKey := os.Getenv("AES_256_KEY")
 	bindexKey := os.Getenv("BLIND_INDEX_KEY")
 
 	if len(aesKey) != 32 {
-		log.Fatal(domain.AlertAESNot32Character)
+		slog.Error("SECURITY", slog.String("error", domain.AlertAESNot32Character))
+		os.Exit(1)
 	}
 	if bindexKey == "" {
-		log.Fatal(domain.AlertBlindIndexEmpty)
+		slog.Error("SECURITY", slog.String("error", domain.AlertBlindIndexEmpty))
+		os.Exit(1)
 	}
 
 	rsaPrivateKey, err := utils.LoadRSAPrivateKey()
 	if err != nil {
-		panic(err)
+		slog.Error("RSA: LOAD PRIVATE KEY FAILED", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	rsaPublicKey, err := utils.LoadRSAPublicKey()
 	if err != nil {
-		panic(err)
+		slog.Error("RSA: LOAD PUBLIC KEY FAILED", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	dbAddress := os.Getenv("DATABASE_URL")
@@ -88,6 +97,12 @@ func main() {
 	rdb := initRedis()
 
 	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+
+	e.Use(echoMid.Recover())
+	e.Use(echoMid.RequestID())
+	e.Use(middleware.SlogMiddleware())
 
 	cRepo := repository.GetCategoryRepository(db)
 	pRepo := repository.GetProductRepository(db)
@@ -110,7 +125,8 @@ func main() {
 
 	go func() {
 		if err := e.Start(":3000"); err != nil && err != http.ErrServerClosed {
-			e.Logger.Fatalf("SERVER: START SERVER FAILED, ERR: %v", err)
+			slog.Error("SERVER: START SERVER FAILED", slog.String("error", err.Error()))
+			os.Exit(1)
 		}
 	}()
 
@@ -118,31 +134,31 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
-	log.Println("SERVER: GRACEFULL SHUTDOWN...")
+	slog.Info("SERVER: GRACEFUL SHUTDOWN INITIATED...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
+		slog.Error("SERVER: SHUTDOWN ERROR", slog.String("error", err.Error()))
 	}
 
 	if err := rdb.Close(); err != nil {
-		log.Printf("REDIS: CONNECTION CLOSE FAILED, ERR: %v", err)
+		slog.Error("REDIS: CONNECTION CLOSE FAILED", slog.String("error", err.Error()))
 	} else {
-		log.Println("REDIS: CONNECTION CLOSE SUCCESS")
+		slog.Info("REDIS: CONNECTION CLOSE SUCCESS")
 	}
 
 	sqlDB, err := db.DB()
 	if err == nil {
 		if err := sqlDB.Close(); err != nil {
-			log.Printf("POSTGRES: CONNECTION CLOSE FAILED, ERR: %v", err)
+			slog.Error("POSTGRES: CONNECTION CLOSE FAILED", slog.String("error", err.Error()))
 		} else {
-			log.Println("POSTGRES: CONNECTION CLOSE SUCCESS")
+			slog.Info("POSTGRES: CONNECTION CLOSE SUCCESS")
 		}
 	} else {
-		log.Printf("POSTGRES: FAILED TO EXTRACT SQL DB INSTANCE, ERR: %v", err)
+		slog.Error("POSTGRES: FAILED TO EXTRACT SQL DB INSTANCE", slog.String("error", err.Error()))
 	}
 
-	log.Println("SERVER: SERVER SHUTDOWN SUCCESS")
+	slog.Info("SERVER: SHUTDOWN COMPLETE")
 }

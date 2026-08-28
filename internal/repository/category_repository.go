@@ -6,6 +6,7 @@ import (
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
 	"go-pos/pkg/utils"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -51,8 +52,16 @@ func (cRepo *categoryRepo) Create(ctx context.Context, category model.Category) 
 	if err := cRepo.db.Create(&category).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			slog.Warn("[repository][category_repository][Create] duplicate key violation",
+				slog.String("error", err.Error()),
+				slog.String("category_name", category.Name),
+			)
 			return model.Category{}, domain.ErrIdempotencyKeyDuplicate
 		}
+		slog.Error("[repository][category_repository][Create] db query failed",
+			slog.String("error", err.Error()),
+			slog.Any("category_data", category),
+		)
 		return model.Category{}, err
 	}
 
@@ -64,8 +73,15 @@ func (cRepo *categoryRepo) GetByID(ctx context.Context, id uuid.UUID) (model.Cat
 
 	if err := cRepo.db.First(&category, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			slog.Info("[repository][category_repository][GetByID] record not found",
+				slog.String("id", id.String()),
+			)
 			return model.Category{}, domain.ErrCategoryNotFound
 		}
+		slog.Error("[repository][category_repository][GetByID] failed to execute query",
+			slog.String("error", err.Error()),
+			slog.String("id", id.String()),
+		)
 		return model.Category{}, err
 	}
 

@@ -7,7 +7,7 @@ import (
 	"go-pos/internal/model"
 	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
-	"log"
+	"log/slog"
 
 	"github.com/google/uuid"
 )
@@ -81,7 +81,11 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryR
 
 		go func(logData model.AuditLog) {
 			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
-				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
+				slog.Error("[usecase][category_usecase][Create] failed to record audit log",
+					slog.String("error", err.Error()),
+					slog.String("entity_id", logData.EntityID),
+					slog.String("actor_id", logData.ActorID.String()),
+				)
 			}
 		}(auditLog)
 	}
@@ -134,7 +138,11 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 
 		go func(logData model.AuditLog) {
 			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
-				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
+				slog.Error("[usecase][category_usecase][Create] failed to record audit log",
+					slog.String("error", err.Error()),
+					slog.String("entity_id", logData.EntityID),
+					slog.String("actor_id", logData.ActorID.String()),
+				)
 			}
 		}(auditLog)
 	}
@@ -167,7 +175,13 @@ func (cUsecase *categoryUsecase) DeleteCategoryByID(ctx context.Context, id uuid
 			UserAgent: meta.UserAgent,
 		}
 		go func(logData model.AuditLog) {
-			cUsecase.aRepo.Create(context.Background(), logData)
+			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
+				slog.Error("[usecase][category_usecase][Create] failed to record audit log",
+					slog.String("error", err.Error()),
+					slog.String("entity_id", logData.EntityID),
+					slog.String("actor_id", logData.ActorID.String()),
+				)
+			}
 		}(auditLog)
 	}
 	return nil

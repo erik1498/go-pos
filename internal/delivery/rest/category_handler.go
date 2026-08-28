@@ -7,6 +7,7 @@ import (
 	"go-pos/internal/model"
 	"go-pos/pkg/response"
 	"go-pos/pkg/utils"
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -20,6 +21,9 @@ func (h *handler) GetAllCategory(c echo.Context) error {
 
 	categoryList, totalItems, err := h.cUsecase.GetAll(ctx, opts)
 	if err != nil {
+		slog.Error("[delivery][rest][category_handler][GetAllCategory] failed to fetch data",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
@@ -33,6 +37,9 @@ func (h *handler) CreateCategory(c echo.Context) error {
 	err := json.NewDecoder(c.Request().Body).Decode(&req)
 
 	if err != nil {
+		slog.Warn("[delivery][rest][category_handler][CreateCategory] invalid request body",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
@@ -42,8 +49,14 @@ func (h *handler) CreateCategory(c echo.Context) error {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
+			slog.Warn("[delivery][rest][category_handler][CreateCategory] duplicate idempotency key",
+				slog.String("error", err.Error()),
+			)
 			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
 		}
+		slog.Error("[delivery][rest][category_handler][CreateCategory] failed to create data",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
@@ -55,6 +68,9 @@ func (h *handler) GetCategoryByID(c echo.Context) error {
 
 	ID, err := uuid.Parse(idParam)
 	if err != nil {
+		slog.Warn("[delivery][rest][category_handler][GetCategoryByID] invalid id",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
@@ -64,8 +80,14 @@ func (h *handler) GetCategoryByID(c echo.Context) error {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrCategoryNotFound) {
+			slog.Warn("[delivery][rest][category_handler][GetCategoryByID] duplicate idempotency key",
+				slog.String("error", err.Error()),
+			)
 			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
+		slog.Error("[delivery][rest][category_handler][GetCategoryByID] failed to fetch data",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
@@ -77,6 +99,9 @@ func (h *handler) UpdateCategoryById(c echo.Context) error {
 
 	ID, err := uuid.Parse(idParam)
 	if err != nil {
+		slog.Warn("[delivery][rest][category_handler][UpdateCategoryById] invalid id",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
@@ -84,6 +109,9 @@ func (h *handler) UpdateCategoryById(c echo.Context) error {
 
 	err = json.NewDecoder(c.Request().Body).Decode(&req)
 	if err != nil {
+		slog.Warn("[delivery][rest][category_handler][UpdateCategoryById] invalid request body",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
@@ -92,9 +120,14 @@ func (h *handler) UpdateCategoryById(c echo.Context) error {
 	if err != nil {
 
 		if errors.Is(err, domain.ErrCategoryNotFound) {
+			slog.Warn("[delivery][rest][category_handler][UpdateCategoryById] duplicate idempotency key",
+				slog.String("error", err.Error()),
+			)
 			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
-
+		slog.Error("[delivery][rest][category_handler][UpdateCategoryById] failed to update data",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
@@ -106,6 +139,9 @@ func (h *handler) DeleteCategoryByID(c echo.Context) error {
 
 	ID, err := uuid.Parse(idParam)
 	if err != nil {
+		slog.Warn("[delivery][rest][category_handler][DeleteCategoryByID] invalid id",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
@@ -115,9 +151,15 @@ func (h *handler) DeleteCategoryByID(c echo.Context) error {
 	if err != nil {
 
 		if errors.Is(err, domain.ErrCategoryNotFound) {
+			slog.Warn("[delivery][rest][category_handler][DeleteCategoryByID] duplicate idempotency key",
+				slog.String("error", err.Error()),
+			)
 			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
 		}
 
+		slog.Error("[delivery][rest][category_handler][DeleteCategoryByID] failed to delete data",
+			slog.String("error", err.Error()),
+		)
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
