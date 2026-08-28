@@ -3,12 +3,15 @@ package rest
 import (
 	"go-pos/internal/model"
 	"go-pos/pkg/middleware"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 )
 
 func LoadRoutes(e *echo.Echo, h *handler, rdb *redis.Client) {
+	e.Use(middleware.RateLimiter(rdb, 100, 1*time.Minute))
+
 	am := middleware.GetAuthMiddleware(h.uUsecase)
 
 	v1 := e.Group("/api/v1")
@@ -16,7 +19,7 @@ func LoadRoutes(e *echo.Echo, h *handler, rdb *redis.Client) {
 
 	userGroup := apiPublic.Group("/users")
 	userGroup.POST("/register", h.RegisterUser)
-	userGroup.POST("/login", h.LoginUser)
+	userGroup.POST("/login", h.LoginUser, middleware.RateLimiter(rdb, 5, 1*time.Minute))
 
 	apiPrivateGroup := v1.Group("")
 	apiPrivateGroup.Use(am.CheckAuth)

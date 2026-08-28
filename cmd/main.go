@@ -133,5 +133,16 @@ func main() {
 		log.Println("REDIS: CONNECTION CLOSE SUCCESS")
 	}
 
+	sqlDB, err := db.DB()
+	if err == nil {
+		if err := sqlDB.Close(); err != nil {
+			log.Printf("POSTGRES: CONNECTION CLOSE FAILED, ERR: %v", err)
+		} else {
+			log.Println("POSTGRES: CONNECTION CLOSE SUCCESS")
+		}
+	} else {
+		log.Printf("POSTGRES: FAILED TO EXTRACT SQL DB INSTANCE, ERR: %v", err)
+	}
+
 	log.Println("SERVER: SERVER SHUTDOWN SUCCESS")
 }

@@ -89,3 +89,7 @@ func ErrNotFound(c echo.Context, detail string) error {
 func ErrInternalServer(c echo.Context, detail string) error {
 	return BuildError(c, http.StatusInternalServerError, "Internal Server Error", detail, nil)
 }
+
+func ErrTooManyRequests(c echo.Context, detail string) error {
+	return BuildError(c, http.StatusTooManyRequests, "Too Many Request", detail, nil)
+}
