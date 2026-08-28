@@ -41,6 +41,7 @@ type Order struct {
 	TotalTax              decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"total_tax"`
 	GrandTotal            decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"grand_total"`
 	IdempotencyKey        string          `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
+	CreatedBy             uuid.UUID       `gorm:"type:uuid;not null" json:"created_by"`
 	CreatedAt             time.Time       `gorm:"autoCreateTime" json:"created_at"`
 	Items                 []OrderItem     `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE;OnDelete:CASCADE" json:"items"`
 }
@@ -54,6 +55,8 @@ type OrderItem struct {
 	Qty            decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"qty"`
 	SubTotal       decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"sub_total"`
 	IdempotencyKey string          `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
+	CreatedBy      uuid.UUID       `gorm:"type:uuid;not null" json:"created_by"`
+	CreatedAt      time.Time       `gorm:"autoCreateTime" json:"created_at"`
 	AppliedTaxes   []OrderItemTax  `gorm:"foreignKey:OrderItemID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"applied_taxes"`
 }
 
@@ -64,6 +67,8 @@ type OrderItemTax struct {
 	TaxName        string          `gorm:"type:varchar(50);not null" json:"tax_name"`
 	TaxRate        decimal.Decimal `gorm:"type:numeric(5,2);not null" json:"tax_rate"`
 	IdempotencyKey string          `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
+	CreatedAt      time.Time       `gorm:"autoCreateTime" json:"created_at"`
+	CreatedBy      uuid.UUID       `gorm:"type:uuid;not null" json:"created_by"`
 	TaxAmount      decimal.Decimal `gorm:"type:numeric(12,3);not null" json:"tax_amount"`
 }
 

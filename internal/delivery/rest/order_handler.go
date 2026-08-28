@@ -15,7 +15,9 @@ import (
 func (h *handler) GetAllOrder(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
 
-	orders, totalItems, err := h.oUsecase.GetAll(opts)
+	ctx := c.Request().Context()
+
+	orders, totalItems, err := h.oUsecase.GetAll(ctx, opts)
 	if err != nil {
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -32,13 +34,18 @@ func (h *handler) CreateOrder(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	order, err := h.oUsecase.Create(req)
+	ctx := c.Request().Context()
+
+	order, err := h.oUsecase.Create(ctx, req)
 	if err != nil {
 		if errors.Is(err, domain.ErrOrderNoIsAlreadyRegistered) {
 			return response.ErrBadRequest(c, domain.ErrOrderNoIsAlreadyRegistered.Error())
 		}
 		if errors.Is(err, domain.ErrProductStockIsNotEnough) {
 			return response.ErrBadRequest(c, domain.ErrProductStockIsNotEnough.Error())
+		}
+		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
+			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}

@@ -6,5 +6,5 @@ import (
 )
 
 type AuditLogRepository interface {
-	Create(ctx context.Context, logData model.AuditLog)
+	Create(ctx context.Context, logData model.AuditLog) error
 }

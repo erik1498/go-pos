@@ -54,7 +54,9 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
-		userID, role, err := am.uUsecase.CheckSession(userSession)
+		ctx := c.Request().Context()
+
+		userID, role, err := am.uUsecase.CheckSession(ctx, userSession)
 		if err != nil {
 			return &echo.HTTPError{
 				Code:     http.StatusUnauthorized,
@@ -72,7 +74,7 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			UserAgent: userAgent,
 		}
 
-		authContext := context.WithValue(c.Request().Context(), model.AuthContextKey, userID)
+		authContext := context.WithValue(ctx, model.AuthContextKey, userID)
 		auditContext := context.WithValue(authContext, AuditMetaKey, auditMeta)
 		c.SetRequest(c.Request().WithContext(auditContext))
 

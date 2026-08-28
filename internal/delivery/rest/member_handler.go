@@ -16,7 +16,9 @@ import (
 func (h *handler) GetAllMember(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
 
-	members, totalItems, err := h.mUsecase.GetAll(opts)
+	ctx := c.Request().Context()
+
+	members, totalItems, err := h.mUsecase.GetAll(ctx, opts)
 
 	if err != nil {
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
@@ -34,10 +36,15 @@ func (h *handler) CreateMember(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	member, err := h.mUsecase.Create(req)
+	ctx := c.Request().Context()
+
+	member, err := h.mUsecase.Create(ctx, req)
 	if err != nil {
 		if errors.Is(err, domain.ErrPhoneNumberRequired) {
 			return response.ErrValidation(c, domain.ErrPhoneNumberRequired.Error(), nil)
+		}
+		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
+			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -53,7 +60,9 @@ func (h *handler) GetMemberByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
-	member, err := h.mUsecase.GetByID(ID)
+	ctx := c.Request().Context()
+
+	member, err := h.mUsecase.GetByID(ctx, ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrMemberNotFound) {
 			return response.ErrNotFound(c, domain.ErrMemberNotFound.Error())
@@ -77,7 +86,9 @@ func (h *handler) UpdateMemberByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	member, err := h.mUsecase.UpdateByID(req, ID)
+	ctx := c.Request().Context()
+
+	member, err := h.mUsecase.UpdateByID(ctx, ID, req)
 	if err != nil {
 		if errors.Is(err, domain.ErrMemberNotFound) {
 			return response.ErrNotFound(c, domain.ErrMemberNotFound.Error())
@@ -96,7 +107,9 @@ func (h *handler) DeleteMemberByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	err = h.mUsecase.DeleteByID(ID)
+	ctx := c.Request().Context()
+
+	err = h.mUsecase.DeleteByID(ctx, ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrMemberNotFound) {
 			return response.ErrNotFound(c, domain.ErrMemberNotFound.Error())

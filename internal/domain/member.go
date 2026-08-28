@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/model"
 
@@ -23,17 +24,17 @@ var (
 )
 
 type MemberRepository interface {
-	GetAll(opts QueryOptions) ([]model.Member, int64, error)
-	Create(member model.Member) (model.Member, error)
-	GetByID(id uuid.UUID) (model.Member, error)
-	UpdateByID(member model.Member, id uuid.UUID) (model.Member, error)
-	DeleteByID(id uuid.UUID) error
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Member, int64, error)
+	Create(ctx context.Context, member model.Member) (model.Member, error)
+	GetByID(ctx context.Context, id uuid.UUID) (model.Member, error)
+	UpdateByID(ctx context.Context, id uuid.UUID, member model.Member) (model.Member, error)
+	DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error
 }
 
 type MemberUsecase interface {
-	GetAll(opts QueryOptions) ([]model.Member, int64, error)
-	Create(member model.MemberRequest) (model.Member, error)
-	GetByID(id uuid.UUID) (model.Member, error)
-	UpdateByID(req model.MemberRequest, id uuid.UUID) (model.Member, error)
-	DeleteByID(id uuid.UUID) error
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Member, int64, error)
+	Create(ctx context.Context, member model.MemberRequest) (model.Member, error)
+	GetByID(ctx context.Context, id uuid.UUID) (model.Member, error)
+	UpdateByID(ctx context.Context, id uuid.UUID, req model.MemberRequest) (model.Member, error)
+	DeleteByID(ctx context.Context, id uuid.UUID) error
 }

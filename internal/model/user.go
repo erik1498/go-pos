@@ -22,6 +22,7 @@ type User struct {
 	Email          string    `gorm:"-" json:"email,omitempty"`
 	Hash           string    `gorm:"type:varchar(255);not null;" json:"-"`
 	Role           UserRole  `gorm:"type:varchar(20);not null;default:'CASHIER'" json:"role"`
+	IdempotencyKey string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
 	CreatedAt      time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }

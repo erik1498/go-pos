@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/model"
 
@@ -15,14 +16,14 @@ var (
 )
 
 type OrderRepository interface {
-	GetAll(opts QueryOptions) ([]model.Order, int64, error)
-	Create(order model.Order) (model.Order, error)
-	GetByID(id uuid.UUID) (model.Order, error)
-	UpdateByID(id uuid.UUID, order model.Order) (model.Order, error)
-	DeleteByID(id uuid.UUID) error
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Order, int64, error)
+	Create(ctx context.Context, order model.Order) (model.Order, error)
+	GetByID(ctx context.Context, id uuid.UUID) (model.Order, error)
+	UpdateByID(ctx context.Context, id uuid.UUID, order model.Order) (model.Order, error)
+	DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error
 }
 
 type OrderUsecase interface {
-	GetAll(opts QueryOptions) ([]model.Order, int64, error)
-	Create(req model.CreateOrderRequest) (model.Order, error)
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Order, int64, error)
+	Create(ctx context.Context, req model.CreateOrderRequest) (model.Order, error)
 }

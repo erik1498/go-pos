@@ -23,7 +23,7 @@ func GetCategoryRepository(db *gorm.DB) domain.CategoryRepository {
 	}
 }
 
-func (cRepo *categoryRepo) GetAll(opts domain.QueryOptions) ([]model.Category, int64, error) {
+func (cRepo *categoryRepo) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Category, int64, error) {
 	var categoryList = []model.Category{}
 	var totalItems int64
 
@@ -47,7 +47,7 @@ func (cRepo *categoryRepo) GetAll(opts domain.QueryOptions) ([]model.Category, i
 	return categoryList, totalItems, err
 }
 
-func (cRepo *categoryRepo) Create(category model.Category) (model.Category, error) {
+func (cRepo *categoryRepo) Create(ctx context.Context, category model.Category) (model.Category, error) {
 	if err := cRepo.db.Create(&category).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -59,7 +59,7 @@ func (cRepo *categoryRepo) Create(category model.Category) (model.Category, erro
 	return category, nil
 }
 
-func (cRepo *categoryRepo) GetByID(id uuid.UUID) (model.Category, error) {
+func (cRepo *categoryRepo) GetByID(ctx context.Context, id uuid.UUID) (model.Category, error) {
 	var category model.Category
 
 	if err := cRepo.db.First(&category, id).Error; err != nil {
@@ -72,7 +72,7 @@ func (cRepo *categoryRepo) GetByID(id uuid.UUID) (model.Category, error) {
 	return category, nil
 }
 
-func (cRepo *categoryRepo) UpdateCategoryByID(id uuid.UUID, category model.Category) (model.Category, error) {
+func (cRepo *categoryRepo) UpdateCategoryByID(ctx context.Context, id uuid.UUID, category model.Category) (model.Category, error) {
 	res := cRepo.db.Where(&model.Category{ID: id}).Clauses(clause.Returning{}).Updates(&category)
 
 	if res.Error != nil {

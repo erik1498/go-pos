@@ -9,16 +9,15 @@ import (
 	"go-pos/internal/usecase"
 	"go-pos/pkg/utils"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
-)
-
-const (
-	dbAddress = "host=localhost user=postgres password=postgres dbname=go-pos sslmode=disable"
 )
 
 func initRedis() *redis.Client {
@@ -34,9 +33,14 @@ func initRedis() *redis.Client {
 	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr:     host + ":" + port,
-		Password: password,
-		DB:       0,
+		Addr:         host + ":" + port,
+		Password:     password,
+		DB:           0,
+		PoolSize:     20,
+		MinIdleConns: 5,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -44,26 +48,27 @@ func initRedis() *redis.Client {
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
-		panic(err)
+		log.Fatalf("REDIS: CONNECTION FAILED %s:%s. ERR: %v", host, port, err)
 	}
 
+	log.Println("REDIS: CONNECTED")
 	return client
 }
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		panic(domain.AlertEnvNotFound)
+		log.Println("INFO: .env not found.")
 	}
-
-	rdb := initRedis()
-	defer func() {
-		if err := rdb.Close(); err != nil {
-			log.Printf("Redis: %v", err)
-		}
-	}()
 
 	aesKey := os.Getenv("AES_256_KEY")
 	bindexKey := os.Getenv("BLIND_INDEX_KEY")
+
+	if len(aesKey) != 32 {
+		log.Fatal(domain.AlertAESNot32Character)
+	}
+	if bindexKey == "" {
+		log.Fatal(domain.AlertBlindIndexEmpty)
+	}
 
 	rsaPrivateKey, err := utils.LoadRSAPrivateKey()
 	if err != nil {
@@ -75,17 +80,14 @@ func main() {
 		panic(err)
 	}
 
-	if len(aesKey) != 32 {
-		panic(domain.AlertAESNot32Character)
+	dbAddress := os.Getenv("DATABASE_URL")
+	if dbAddress == "" {
+		dbAddress = "host=localhost user=postgres password=postgres dbname=go-pos sslmode=disable"
 	}
-
-	if bindexKey == "" {
-		panic(domain.AlertBlindIndexEmpty)
-	}
+	db := database.GetDB(dbAddress)
+	rdb := initRedis()
 
 	e := echo.New()
-
-	db := database.GetDB(dbAddress)
 
 	cRepo := repository.GetCategoryRepository(db)
 	pRepo := repository.GetProductRepository(db)
@@ -95,16 +97,41 @@ func main() {
 	uRepo := repository.GetUserRepository(db)
 	aRepo := repository.GetAuditLogRepository(db)
 
-	cUsecase := usecase.GetCategoryUsecase(cRepo, aRepo)
-	pUsecase := usecase.GetProductUsecase(pRepo, cRepo, tRepo)
-	mUsecase := usecase.GetMemberUsecase(mRepo, aesKey, bindexKey)
-	oUsecase := usecase.GetOrderUsecase(oRepo, mRepo, pRepo)
-	tUsecase := usecase.GetTaxUsecase(tRepo)
-	uUsecase := usecase.GetUserUsecase(uRepo, aesKey, bindexKey, rsaPrivateKey, rsaPublicKey)
+	cUsecase := usecase.GetCategoryUsecase(aRepo, cRepo)
+	pUsecase := usecase.GetProductUsecase(aRepo, pRepo, cRepo, tRepo)
+	mUsecase := usecase.GetMemberUsecase(aRepo, mRepo, aesKey, bindexKey)
+	oUsecase := usecase.GetOrderUsecase(aRepo, oRepo, mRepo, pRepo)
+	tUsecase := usecase.GetTaxUsecase(aRepo, tRepo)
+	uUsecase := usecase.GetUserUsecase(aRepo, uRepo, aesKey, bindexKey, rsaPrivateKey, rsaPublicKey)
 
 	handler := rest.NewHandler(cUsecase, pUsecase, mUsecase, oUsecase, tUsecase, uUsecase)
 
 	rest.LoadRoutes(e, handler, rdb)
 
-	e.Logger.Fatal(e.Start(":3000"))
+	go func() {
+		if err := e.Start(":3000"); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatalf("SERVER: START SERVER FAILED, ERR: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	log.Println("SERVER: GRACEFULL SHUTDOWN...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
+
+	if err := rdb.Close(); err != nil {
+		log.Printf("REDIS: CONNECTION CLOSE FAILED, ERR: %v", err)
+	} else {
+		log.Println("REDIS: CONNECTION CLOSE SUCCESS")
+	}
+
+	log.Println("SERVER: SERVER SHUTDOWN SUCCESS")
 }

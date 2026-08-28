@@ -7,23 +7,24 @@ import (
 	"go-pos/internal/model"
 	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
+	"log"
 
 	"github.com/google/uuid"
 )
 
 type categoryUsecase struct {
-	cRepo domain.CategoryRepository
 	aRepo domain.AuditLogRepository
+	cRepo domain.CategoryRepository
 }
 
-func GetCategoryUsecase(cRepo domain.CategoryRepository, aRepo domain.AuditLogRepository) domain.CategoryUsecase {
+func GetCategoryUsecase(aRepo domain.AuditLogRepository, cRepo domain.CategoryRepository) domain.CategoryUsecase {
 	return &categoryUsecase{
-		cRepo: cRepo,
 		aRepo: aRepo,
+		cRepo: cRepo,
 	}
 }
 
-func (cUsecase *categoryUsecase) GetAll(opts domain.QueryOptions) ([]model.Category, int64, error) {
+func (cUsecase *categoryUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Category, int64, error) {
 	allowedFields := map[string]bool{
 		"name": true,
 	}
@@ -35,7 +36,7 @@ func (cUsecase *categoryUsecase) GetAll(opts domain.QueryOptions) ([]model.Categ
 
 	cleanOpts := utils.SanitizeQuery(opts, allowedFields, allowedSorts, "created_at desc")
 
-	return cUsecase.cRepo.GetAll(cleanOpts)
+	return cUsecase.cRepo.GetAll(ctx, cleanOpts)
 }
 
 func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryRequest) (model.Category, error) {
@@ -58,7 +59,7 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryR
 		IdempotencyKey: idemKey,
 	}
 
-	category, err := cUsecase.cRepo.Create(category)
+	category, err := cUsecase.cRepo.Create(ctx, category)
 	if err != nil {
 		return model.Category{}, err
 	}
@@ -79,15 +80,17 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryR
 		}
 
 		go func(logData model.AuditLog) {
-			cUsecase.aRepo.Create(context.Background(), logData)
+			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
+				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
+			}
 		}(auditLog)
 	}
 
 	return category, nil
 }
 
-func (cUsecase *categoryUsecase) GetByID(id uuid.UUID) (model.Category, error) {
-	return cUsecase.cRepo.GetByID(id)
+func (cUsecase *categoryUsecase) GetByID(ctx context.Context, id uuid.UUID) (model.Category, error) {
+	return cUsecase.cRepo.GetByID(ctx, id)
 }
 
 func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid.UUID, req model.CategoryRequest) (model.Category, error) {
@@ -97,13 +100,46 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 		actorID = uuid.MustParse(meta.UserID)
 	}
 
+	oldCategory, err := cUsecase.cRepo.GetByID(ctx, id)
+	if err != nil {
+		return model.Category{}, err
+	}
+
 	category := model.Category{
 		ID:        id,
 		Name:      req.Name,
 		UpdatedBy: actorID,
 	}
 
-	return cUsecase.cRepo.UpdateCategoryByID(id, category)
+	updatedCategory, err := cUsecase.cRepo.UpdateCategoryByID(ctx, id, category)
+	if err != nil {
+		return model.Category{}, err
+	}
+
+	if metaValid {
+		oldValuesJSON, _ := json.Marshal(oldCategory)
+		newValuesJSON, _ := json.Marshal(updatedCategory)
+
+		auditLog := model.AuditLog{
+			ActorID:   actorID,
+			ActorRole: meta.Role,
+			Action:    "UPDATE",
+			Entity:    "categories",
+			EntityID:  id.String(),
+			OldValues: string(oldValuesJSON),
+			NewValues: string(newValuesJSON),
+			IPAddress: meta.IPAddress,
+			UserAgent: meta.UserAgent,
+		}
+
+		go func(logData model.AuditLog) {
+			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
+				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
+			}
+		}(auditLog)
+	}
+
+	return updatedCategory, nil
 }
 
 func (cUsecase *categoryUsecase) DeleteCategoryByID(ctx context.Context, id uuid.UUID) error {

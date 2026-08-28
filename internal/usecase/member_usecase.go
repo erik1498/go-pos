@@ -1,10 +1,14 @@
 package usecase
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
+	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
+	"log"
 	"strings"
 	"time"
 
@@ -12,20 +16,22 @@ import (
 )
 
 type memberUsecase struct {
+	aRepo     domain.AuditLogRepository
 	mRepo     domain.MemberRepository
 	aesKey    []byte
 	bindexKey string
 }
 
-func GetMemberUsecase(mRepo domain.MemberRepository, aesKey string, bindexKey string) domain.MemberUsecase {
+func GetMemberUsecase(aRepo domain.AuditLogRepository, mRepo domain.MemberRepository, aesKey string, bindexKey string) domain.MemberUsecase {
 	return &memberUsecase{
+		aRepo:     aRepo,
 		mRepo:     mRepo,
 		aesKey:    []byte(aesKey),
 		bindexKey: bindexKey,
 	}
 }
 
-func (mUsecase *memberUsecase) GetAll(opts domain.QueryOptions) ([]model.Member, int64, error) {
+func (mUsecase *memberUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Member, int64, error) {
 	allowedSorts := map[string]bool{
 		"member_code": true,
 		"created_at":  true,
@@ -52,7 +58,7 @@ func (mUsecase *memberUsecase) GetAll(opts domain.QueryOptions) ([]model.Member,
 		}
 	}
 
-	encryptedMembers, totalItems, err := mUsecase.mRepo.GetAll(cleanOpts)
+	encryptedMembers, totalItems, err := mUsecase.mRepo.GetAll(ctx, cleanOpts)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -77,7 +83,18 @@ func (mUsecase *memberUsecase) GetAll(opts domain.QueryOptions) ([]model.Member,
 	return decryptedMembers, totalItems, nil
 }
 
-func (mUsecase *memberUsecase) Create(req model.MemberRequest) (model.Member, error) {
+func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberRequest) (model.Member, error) {
+	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
+	var actorID uuid.UUID
+	if metaValid {
+		actorID = uuid.MustParse(meta.UserID)
+	}
+
+	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
+	if !ok && idemKey == "" {
+		return model.Member{}, domain.ErrIdempotencyKeyDuplicate
+	}
+
 	req.Phone = strings.TrimSpace(req.Phone)
 	if req.Phone == "" {
 		return model.Member{}, domain.ErrPhoneNumberRequired
@@ -124,18 +141,43 @@ func (mUsecase *memberUsecase) Create(req model.MemberRequest) (model.Member, er
 		Phone:          req.Phone,
 		Email:          req.Email,
 		Points:         0,
+		IdempotencyKey: idemKey,
+		CreatedBy:      actorID,
+		UpdatedBy:      actorID,
 	}
 
-	member, err := mUsecase.mRepo.Create(newMember)
+	member, err := mUsecase.mRepo.Create(ctx, newMember)
 	if err != nil {
 		return model.Member{}, err
+	}
+
+	if metaValid {
+		newValueJSON, _ := json.Marshal(member)
+
+		auditLog := model.AuditLog{
+			ActorID:   actorID,
+			ActorRole: meta.Role,
+			Action:    "CREATE",
+			Entity:    "members",
+			EntityID:  member.ID.String(),
+			OldValues: "null",
+			NewValues: string(newValueJSON),
+			IPAddress: meta.IPAddress,
+			UserAgent: meta.UserAgent,
+		}
+
+		go func(logData model.AuditLog) {
+			if err := mUsecase.aRepo.Create(context.Background(), logData); err != nil {
+				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
+			}
+		}(auditLog)
 	}
 
 	return member, nil
 }
 
-func (mUsecase *memberUsecase) GetByID(id uuid.UUID) (model.Member, error) {
-	member, err := mUsecase.mRepo.GetByID(id)
+func (mUsecase *memberUsecase) GetByID(ctx context.Context, id uuid.UUID) (model.Member, error) {
+	member, err := mUsecase.mRepo.GetByID(ctx, id)
 	if err != nil {
 		return model.Member{}, err
 	}
@@ -156,8 +198,20 @@ func (mUsecase *memberUsecase) GetByID(id uuid.UUID) (model.Member, error) {
 	return member, nil
 }
 
-func (mUsecase *memberUsecase) UpdateByID(req model.MemberRequest, id uuid.UUID) (model.Member, error) {
+func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req model.MemberRequest) (model.Member, error) {
+	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
+	var actorID uuid.UUID
+	if metaValid {
+		actorID = uuid.MustParse(meta.UserID)
+	}
+
+	oldMember, err := mUsecase.mRepo.GetByID(ctx, id)
+	if err != nil {
+		return model.Member{}, err
+	}
+
 	nameEncrypted, err := utils.EncryptAES(req.Name, mUsecase.aesKey)
+
 	if err != nil {
 		return model.Member{}, domain.ErrEncryptName
 	}
@@ -186,11 +240,65 @@ func (mUsecase *memberUsecase) UpdateByID(req model.MemberRequest, id uuid.UUID)
 		Name:           req.Name,
 		Phone:          req.Phone,
 		Email:          req.Email,
+		UpdatedBy:      actorID,
 	}
 
-	return mUsecase.mRepo.UpdateByID(member, id)
+	updatedMember, err := mUsecase.mRepo.UpdateByID(ctx, id, member)
+
+	if metaValid {
+		oldValuesJSON, _ := json.Marshal(oldMember)
+		newValuesJSON, _ := json.Marshal(updatedMember)
+
+		auditLog := model.AuditLog{
+			ActorID:   actorID,
+			ActorRole: meta.Role,
+			Action:    "UPDATE",
+			Entity:    "members",
+			EntityID:  id.String(),
+			OldValues: string(oldValuesJSON),
+			NewValues: string(newValuesJSON),
+			IPAddress: meta.IPAddress,
+			UserAgent: meta.UserAgent,
+		}
+
+		go func(logData model.AuditLog) {
+			if err := mUsecase.aRepo.Create(context.Background(), logData); err != nil {
+				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
+			}
+		}(auditLog)
+	}
+
+	return updatedMember, nil
 }
 
-func (mUsecase *memberUsecase) DeleteByID(id uuid.UUID) error {
-	return mUsecase.mRepo.DeleteByID(id)
+func (mUsecase *memberUsecase) DeleteByID(ctx context.Context, id uuid.UUID) error {
+	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
+	var actorID uuid.UUID
+	if metaValid {
+		actorID = uuid.MustParse(meta.UserID)
+	}
+
+	err := mUsecase.mRepo.DeleteByID(ctx, id, actorID)
+	if err != nil {
+		return err
+	}
+
+	if metaValid {
+		auditLog := model.AuditLog{
+			ActorID:   actorID,
+			ActorRole: meta.Role,
+			Action:    "DELETE",
+			Entity:    "members",
+			EntityID:  id.String(),
+			OldValues: "{}",
+			NewValues: "null",
+			IPAddress: meta.IPAddress,
+			UserAgent: meta.UserAgent,
+		}
+		go func(logData model.AuditLog) {
+			mUsecase.aRepo.Create(context.Background(), logData)
+		}(auditLog)
+	}
+
+	return nil
 }

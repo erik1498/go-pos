@@ -18,6 +18,8 @@ type Product struct {
 	Stock          decimal.Decimal `gorm:"type:numeric(12,3);default:0;no null;" json:"stock"`
 	Taxes          []Tax           `gorm:"many2many:product_taxes;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"taxes,omitempty"`
 	IdempotencyKey string          `gorm:"type:varchar(100);uniqueIndex;not null" json:"idempotency_key"`
+	CreatedBy      uuid.UUID       `gorm:"type:uuid;not null" json:"created_by"`
+	UpdatedBy      uuid.UUID       `gorm:"type:uuid;not null" json:"updated_by"`
 	CreatedAt      time.Time       `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt      gorm.DeletedAt  `gorm:"index" json:"-"`

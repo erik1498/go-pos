@@ -1,10 +1,14 @@
 package usecase
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
+	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
+	"log"
 	"strings"
 	"time"
 
@@ -13,20 +17,22 @@ import (
 )
 
 type orderUsecase struct {
+	aRepo domain.AuditLogRepository
 	oRepo domain.OrderRepository
 	mRepo domain.MemberRepository
 	pRepo domain.ProductRepository
 }
 
-func GetOrderUsecase(oRepo domain.OrderRepository, mRepo domain.MemberRepository, pRepo domain.ProductRepository) domain.OrderUsecase {
+func GetOrderUsecase(aRepo domain.AuditLogRepository, oRepo domain.OrderRepository, mRepo domain.MemberRepository, pRepo domain.ProductRepository) domain.OrderUsecase {
 	return &orderUsecase{
+		aRepo: aRepo,
 		oRepo: oRepo,
 		mRepo: mRepo,
 		pRepo: pRepo,
 	}
 }
 
-func (oUsecase *orderUsecase) GetAll(opts domain.QueryOptions) ([]model.Order, int64, error) {
+func (oUsecase *orderUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Order, int64, error) {
 	allowedSorts := map[string]bool{
 		"order_no":   true,
 		"created_at": true,
@@ -38,11 +44,22 @@ func (oUsecase *orderUsecase) GetAll(opts domain.QueryOptions) ([]model.Order, i
 
 	cleanOpts := utils.SanitizeQuery(opts, allowedFilter, allowedSorts, "created_at")
 
-	return oUsecase.oRepo.GetAll(cleanOpts)
+	return oUsecase.oRepo.GetAll(ctx, cleanOpts)
 }
 
-func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order, error) {
-	_, err := oUsecase.mRepo.GetByID(*req.MemberID)
+func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderRequest) (model.Order, error) {
+	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
+	var actorID uuid.UUID
+	if metaValid {
+		actorID = uuid.MustParse(meta.UserID)
+	}
+
+	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
+	if !ok && idemKey == "" {
+		return model.Order{}, domain.ErrIdempotencyKeyDuplicate
+	}
+
+	_, err := oUsecase.mRepo.GetByID(ctx, *req.MemberID)
 	if err != nil && req.MemberID != nil {
 		return model.Order{}, err
 	}
@@ -50,12 +67,14 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 	orderID := uuid.Must(uuid.NewV7())
 	orderNo := fmt.Sprintf("ORD-%s-%s", time.Now().Format("060102150405"), strings.ToUpper(orderID.String()[:4]))
 	order := model.Order{
-		ID:            orderID,
-		OrderNo:       orderNo,
-		MemberID:      req.MemberID,
-		PaymentMethod: req.PaymentMethod,
-		PaymentStatus: model.PaymentStatusPending,
-		Items:         []model.OrderItem{},
+		ID:             orderID,
+		OrderNo:        orderNo,
+		MemberID:       req.MemberID,
+		PaymentMethod:  req.PaymentMethod,
+		PaymentStatus:  model.PaymentStatusPending,
+		CreatedBy:      actorID,
+		IdempotencyKey: idemKey,
+		Items:          []model.OrderItem{},
 	}
 
 	totalQty := decimal.NewFromInt(0)
@@ -63,7 +82,7 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 	totalTax := decimal.NewFromInt(0)
 
 	for _, reqItem := range req.Items {
-		product, err := oUsecase.pRepo.GetByID(reqItem.ProductID)
+		product, err := oUsecase.pRepo.GetByID(ctx, reqItem.ProductID)
 		if err != nil {
 			return model.Order{}, domain.ErrProductNotFound
 		}
@@ -76,14 +95,16 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 		orderItemID := uuid.Must(uuid.NewV7())
 
 		orderItem := model.OrderItem{
-			ID:           orderItemID,
-			OrderID:      orderID,
-			ProductID:    reqItem.ProductID,
-			ProductName:  product.Name,
-			BasePrice:    product.Price,
-			Qty:          reqItem.Qty,
-			SubTotal:     itemSubTotal,
-			AppliedTaxes: []model.OrderItemTax{},
+			ID:             orderItemID,
+			OrderID:        orderID,
+			ProductID:      reqItem.ProductID,
+			ProductName:    product.Name,
+			BasePrice:      product.Price,
+			Qty:            reqItem.Qty,
+			SubTotal:       itemSubTotal,
+			CreatedBy:      actorID,
+			IdempotencyKey: idemKey,
+			AppliedTaxes:   []model.OrderItemTax{},
 		}
 
 		itemTotalTax := decimal.NewFromInt(0)
@@ -99,12 +120,14 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 				taxID := tax.ID
 
 				orderItemTax := model.OrderItemTax{
-					ID:          taxID,
-					OrderItemID: orderItemID,
-					TaxID:       &taxID,
-					TaxName:     tax.Name,
-					TaxRate:     tax.Rate,
-					TaxAmount:   taxAmount,
+					ID:             taxID,
+					OrderItemID:    orderItemID,
+					TaxID:          &taxID,
+					TaxName:        tax.Name,
+					TaxRate:        tax.Rate,
+					TaxAmount:      taxAmount,
+					CreatedBy:      actorID,
+					IdempotencyKey: idemKey,
 				}
 
 				orderItem.AppliedTaxes = append(orderItem.AppliedTaxes, orderItemTax)
@@ -131,9 +154,31 @@ func (oUsecase *orderUsecase) Create(req model.CreateOrderRequest) (model.Order,
 		order.PaidAt = &now
 	}
 
-	order, err = oUsecase.oRepo.Create(order)
+	order, err = oUsecase.oRepo.Create(ctx, order)
 	if err != nil {
 		return model.Order{}, err
+	}
+
+	if metaValid {
+		newValuesJSON, _ := json.Marshal(order)
+
+		auditLog := model.AuditLog{
+			ActorID:   actorID,
+			ActorRole: meta.Role,
+			Action:    "CREATE",
+			Entity:    "orders",
+			EntityID:  order.ID.String(),
+			OldValues: "{}",
+			NewValues: string(newValuesJSON),
+			IPAddress: meta.IPAddress,
+			UserAgent: meta.UserAgent,
+		}
+
+		go func(logData model.AuditLog) {
+			if err := oUsecase.aRepo.Create(context.Background(), logData); err != nil {
+				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
+			}
+		}(auditLog)
 	}
 
 	return order, nil

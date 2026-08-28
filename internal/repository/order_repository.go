@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
@@ -22,7 +23,7 @@ func GetOrderRepository(db *gorm.DB) domain.OrderRepository {
 	}
 }
 
-func (oRepo *orderRepository) GetAll(opts domain.QueryOptions) ([]model.Order, int64, error) {
+func (oRepo *orderRepository) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Order, int64, error) {
 	var orders []model.Order
 	var totalItems int64
 
@@ -49,7 +50,7 @@ func (oRepo *orderRepository) GetAll(opts domain.QueryOptions) ([]model.Order, i
 
 }
 
-func (oRepo *orderRepository) Create(order model.Order) (model.Order, error) {
+func (oRepo *orderRepository) Create(ctx context.Context, order model.Order) (model.Order, error) {
 	err := oRepo.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&order).Error; err != nil {
 			var pgErr *pgconn.PgError
@@ -78,7 +79,7 @@ func (oRepo *orderRepository) Create(order model.Order) (model.Order, error) {
 	return order, err
 }
 
-func (oRepo *orderRepository) GetByID(id uuid.UUID) (model.Order, error) {
+func (oRepo *orderRepository) GetByID(ctx context.Context, id uuid.UUID) (model.Order, error) {
 	var order model.Order
 	if err := oRepo.db.First(&order, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -89,7 +90,7 @@ func (oRepo *orderRepository) GetByID(id uuid.UUID) (model.Order, error) {
 	return order, nil
 }
 
-func (oRepo *orderRepository) UpdateByID(id uuid.UUID, order model.Order) (model.Order, error) {
+func (oRepo *orderRepository) UpdateByID(ctx context.Context, id uuid.UUID, order model.Order) (model.Order, error) {
 	res := oRepo.db.Where(&model.Order{ID: id}).Clauses(clause.Returning{}).Updates(&order)
 
 	if res.Error != nil {
@@ -103,16 +104,24 @@ func (oRepo *orderRepository) UpdateByID(id uuid.UUID, order model.Order) (model
 	return order, nil
 }
 
-func (oRepo *orderRepository) DeleteByID(id uuid.UUID) error {
-	res := oRepo.db.Delete(&model.Order{}, id)
+func (oRepo *orderRepository) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
+	err := oRepo.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Order{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+			return err
+		}
 
-	if res.Error != nil {
-		return res.Error
-	}
+		res := tx.Delete(&model.Order{}, id)
 
-	if res.RowsAffected == 0 {
-		return domain.ErrOrderNotFound
-	}
+		if res.Error != nil {
+			return res.Error
+		}
 
-	return nil
+		if res.RowsAffected == 0 {
+			return domain.ErrOrderNotFound
+		}
+
+		return nil
+	})
+
+	return err
 }

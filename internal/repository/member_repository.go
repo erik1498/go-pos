@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
@@ -22,7 +23,7 @@ func GetMemberRepository(db *gorm.DB) domain.MemberRepository {
 	}
 }
 
-func (mRepo *memberRepository) GetAll(opts domain.QueryOptions) ([]model.Member, int64, error) {
+func (mRepo *memberRepository) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Member, int64, error) {
 	var member []model.Member
 	var totalItems int64
 
@@ -46,7 +47,7 @@ func (mRepo *memberRepository) GetAll(opts domain.QueryOptions) ([]model.Member,
 	return member, totalItems, err
 }
 
-func (mRepo *memberRepository) Create(member model.Member) (model.Member, error) {
+func (mRepo *memberRepository) Create(ctx context.Context, member model.Member) (model.Member, error) {
 	if err := mRepo.db.Create(&member).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -62,7 +63,7 @@ func (mRepo *memberRepository) Create(member model.Member) (model.Member, error)
 	return member, nil
 }
 
-func (mRepo *memberRepository) GetByID(id uuid.UUID) (model.Member, error) {
+func (mRepo *memberRepository) GetByID(ctx context.Context, id uuid.UUID) (model.Member, error) {
 	var member model.Member
 
 	if err := mRepo.db.First(&member, id).Error; err != nil {
@@ -74,7 +75,7 @@ func (mRepo *memberRepository) GetByID(id uuid.UUID) (model.Member, error) {
 	return member, nil
 }
 
-func (mRepo *memberRepository) UpdateByID(member model.Member, id uuid.UUID) (model.Member, error) {
+func (mRepo *memberRepository) UpdateByID(ctx context.Context, id uuid.UUID, member model.Member) (model.Member, error) {
 	res := mRepo.db.Where(&model.Member{ID: id}).Clauses(clause.Returning{}).Updates(&member)
 
 	if res.Error != nil {
@@ -87,16 +88,24 @@ func (mRepo *memberRepository) UpdateByID(member model.Member, id uuid.UUID) (mo
 	return member, nil
 }
 
-func (mRepo *memberRepository) DeleteByID(id uuid.UUID) error {
-	res := mRepo.db.Delete(&model.Member{}, id)
+func (mRepo *memberRepository) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
+	err := mRepo.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Member{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+			return err
+		}
 
-	if res.Error != nil {
-		return res.Error
-	}
+		res := tx.Delete(&model.Member{}, id)
 
-	if res.RowsAffected == 0 {
-		return domain.ErrMemberNotFound
-	}
+		if res.Error != nil {
+			return res.Error
+		}
 
-	return nil
+		if res.RowsAffected == 0 {
+			return domain.ErrMemberNotFound
+		}
+
+		return nil
+	})
+
+	return err
 }

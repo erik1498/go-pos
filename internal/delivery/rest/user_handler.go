@@ -18,10 +18,15 @@ func (h *handler) RegisterUser(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	user, err := h.uUsecase.Register(req)
+	ctx := c.Request().Context()
+
+	user, err := h.uUsecase.Register(ctx, req)
 	if err != nil {
 		if errors.Is(err, domain.ErrEmailAlreadyRegistered) {
 			return response.ErrBadRequest(c, domain.ErrEmailAlreadyRegistered.Error())
+		}
+		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
+			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -36,7 +41,9 @@ func (h *handler) LoginUser(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	userSession, err := h.uUsecase.Login(req)
+	ctx := c.Request().Context()
+
+	userSession, err := h.uUsecase.Login(ctx, req)
 	if err != nil {
 		if errors.Is(err, domain.ErrUsernameOrPasswordInvalid) {
 			return response.ErrBadRequest(c, domain.ErrUsernameOrPasswordInvalid.Error())

@@ -13,17 +13,17 @@ var (
 )
 
 type CategoryRepository interface {
-	Create(category model.Category) (model.Category, error)
-	GetByID(id uuid.UUID) (model.Category, error)
-	GetAll(opts QueryOptions) ([]model.Category, int64, error)
-	UpdateCategoryByID(id uuid.UUID, category model.Category) (model.Category, error)
+	Create(ctx context.Context, category model.Category) (model.Category, error)
+	GetByID(ctx context.Context, id uuid.UUID) (model.Category, error)
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Category, int64, error)
+	UpdateCategoryByID(ctx context.Context, id uuid.UUID, category model.Category) (model.Category, error)
 	DeleteCategoryByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error
 }
 
 type CategoryUsecase interface {
 	Create(ctx context.Context, req model.CategoryRequest) (model.Category, error)
-	GetByID(id uuid.UUID) (model.Category, error)
-	GetAll(opts QueryOptions) ([]model.Category, int64, error)
+	GetByID(ctx context.Context, id uuid.UUID) (model.Category, error)
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Category, int64, error)
 	UpdateCategoryByID(ctx context.Context, id uuid.UUID, req model.CategoryRequest) (model.Category, error)
 	DeleteCategoryByID(ctx context.Context, id uuid.UUID) error
 }

@@ -16,7 +16,9 @@ import (
 func (h *handler) GetAllProduct(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
 
-	productList, totalItems, err := h.pUsecase.GetAll(opts)
+	ctx := c.Request().Context()
+
+	productList, totalItems, err := h.pUsecase.GetAll(ctx, opts)
 	if err != nil {
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -34,7 +36,9 @@ func (h *handler) CreateProduct(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	product, err := h.pUsecase.Create(req)
+	ctx := c.Request().Context()
+
+	product, err := h.pUsecase.Create(ctx, req)
 	if err != nil {
 		if err == domain.ErrCategoryNotFound {
 			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
@@ -44,6 +48,9 @@ func (h *handler) CreateProduct(c echo.Context) error {
 		}
 		if errors.Is(err, domain.ErrProductSKUIsAlreadyRegistered) {
 			return response.ErrBadRequest(c, domain.ErrProductSKUIsAlreadyRegistered.Error())
+		}
+		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
+			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -59,7 +66,9 @@ func (h *handler) GetProductByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
-	product, err := h.pUsecase.GetByID(ID)
+	ctx := c.Request().Context()
+
+	product, err := h.pUsecase.GetByID(ctx, ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProductNotFound) {
 			return response.ErrNotFound(c, domain.ErrProductNotFound.Error())
@@ -83,7 +92,9 @@ func (h *handler) UpdateProductByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	product, err := h.pUsecase.UpdateByID(ID, req)
+	ctx := c.Request().Context()
+
+	product, err := h.pUsecase.UpdateByID(ctx, ID, req)
 	if err != nil {
 		if errors.Is(err, domain.ErrCategoryNotFound) {
 			return response.ErrNotFound(c, domain.ErrCategoryNotFound.Error())
@@ -111,7 +122,9 @@ func (h *handler) DeleteProductByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	err = h.pUsecase.DeleteByID(ID)
+	ctx := c.Request().Context()
+
+	err = h.pUsecase.DeleteByID(ctx, ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProductNotFound) {
 			return response.ErrNotFound(c, domain.ErrProductNotFound.Error())

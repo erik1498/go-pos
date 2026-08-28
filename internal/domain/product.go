@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/model"
 
@@ -13,17 +14,17 @@ var (
 )
 
 type ProductRepository interface {
-	GetAll(opts QueryOptions) ([]model.Product, int64, error)
-	Create(product model.Product) (model.Product, error)
-	GetByID(id uuid.UUID) (model.Product, error)
-	UpdateByID(id uuid.UUID, product model.Product) (model.Product, error)
-	DeleteByID(id uuid.UUID) error
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Product, int64, error)
+	Create(ctx context.Context, product model.Product) (model.Product, error)
+	GetByID(ctx context.Context, id uuid.UUID) (model.Product, error)
+	UpdateByID(ctx context.Context, id uuid.UUID, product model.Product) (model.Product, error)
+	DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error
 }
 
 type ProductUsecase interface {
-	GetAll(opts QueryOptions) ([]model.Product, int64, error)
-	Create(req model.ProductRequest) (model.Product, error)
-	GetByID(id uuid.UUID) (model.Product, error)
-	UpdateByID(id uuid.UUID, req model.ProductRequest) (model.Product, error)
-	DeleteByID(id uuid.UUID) error
+	GetAll(ctx context.Context, opts QueryOptions) ([]model.Product, int64, error)
+	Create(ctx context.Context, req model.ProductRequest) (model.Product, error)
+	GetByID(ctx context.Context, id uuid.UUID) (model.Product, error)
+	UpdateByID(ctx context.Context, id uuid.UUID, req model.ProductRequest) (model.Product, error)
+	DeleteByID(ctx context.Context, id uuid.UUID) error
 }

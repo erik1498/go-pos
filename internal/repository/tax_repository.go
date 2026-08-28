@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
@@ -21,7 +22,7 @@ func GetTaxRepository(db *gorm.DB) domain.TaxRepository {
 	}
 }
 
-func (tRepo *taxRepository) GetAll(opts domain.QueryOptions) ([]model.Tax, int64, error) {
+func (tRepo *taxRepository) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Tax, int64, error) {
 	var taxes []model.Tax
 	var totalItems int64
 
@@ -46,14 +47,14 @@ func (tRepo *taxRepository) GetAll(opts domain.QueryOptions) ([]model.Tax, int64
 	return taxes, totalItems, nil
 }
 
-func (tRepo *taxRepository) Create(tax model.Tax) (model.Tax, error) {
+func (tRepo *taxRepository) Create(ctx context.Context, tax model.Tax) (model.Tax, error) {
 	if err := tRepo.db.Create(&tax).Error; err != nil {
 		return model.Tax{}, err
 	}
 	return tax, nil
 }
 
-func (tRepo *taxRepository) GetByID(id uuid.UUID) (model.Tax, error) {
+func (tRepo *taxRepository) GetByID(ctx context.Context, id uuid.UUID) (model.Tax, error) {
 	var tax model.Tax
 
 	if err := tRepo.db.First(&tax, id).Error; err != nil {
@@ -66,7 +67,7 @@ func (tRepo *taxRepository) GetByID(id uuid.UUID) (model.Tax, error) {
 	return tax, nil
 }
 
-func (tRepo *taxRepository) UpdateByID(id uuid.UUID, tax model.Tax) (model.Tax, error) {
+func (tRepo *taxRepository) UpdateByID(ctx context.Context, id uuid.UUID, tax model.Tax) (model.Tax, error) {
 	res := tRepo.db.Where(&model.Tax{ID: id}).Clauses(clause.Returning{}).Updates(&tax)
 
 	if res.Error != nil {
@@ -80,16 +81,24 @@ func (tRepo *taxRepository) UpdateByID(id uuid.UUID, tax model.Tax) (model.Tax, 
 	return tax, nil
 }
 
-func (tRepo *taxRepository) DeleteByID(id uuid.UUID) error {
-	res := tRepo.db.Delete(&model.Tax{}, id)
+func (tRepo *taxRepository) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
+	err := tRepo.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Tax{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+			return err
+		}
 
-	if res.Error != nil {
-		return res.Error
-	}
+		res := tx.Delete(&model.Tax{}, id)
 
-	if res.RowsAffected == 0 {
-		return domain.ErrTaxNotFound
-	}
+		if res.Error != nil {
+			return res.Error
+		}
 
-	return nil
+		if res.RowsAffected == 0 {
+			return domain.ErrTaxNotFound
+		}
+
+		return nil
+	})
+
+	return err
 }

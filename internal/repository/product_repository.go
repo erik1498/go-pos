@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
@@ -22,7 +23,7 @@ func GetProductRepository(db *gorm.DB) domain.ProductRepository {
 	}
 }
 
-func (pRepo *productRepository) GetAll(opts domain.QueryOptions) ([]model.Product, int64, error) {
+func (pRepo *productRepository) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Product, int64, error) {
 	var productList []model.Product
 	var totalItems int64
 
@@ -46,7 +47,7 @@ func (pRepo *productRepository) GetAll(opts domain.QueryOptions) ([]model.Produc
 	return productList, totalItems, err
 }
 
-func (pRepo *productRepository) Create(product model.Product) (model.Product, error) {
+func (pRepo *productRepository) Create(ctx context.Context, product model.Product) (model.Product, error) {
 	if err := pRepo.db.Create(&product).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -57,7 +58,7 @@ func (pRepo *productRepository) Create(product model.Product) (model.Product, er
 	return product, nil
 }
 
-func (pRepo *productRepository) GetByID(id uuid.UUID) (model.Product, error) {
+func (pRepo *productRepository) GetByID(ctx context.Context, id uuid.UUID) (model.Product, error) {
 	var product model.Product
 
 	if err := pRepo.db.Preload("Taxes").First(&product, id).Error; err != nil {
@@ -70,7 +71,7 @@ func (pRepo *productRepository) GetByID(id uuid.UUID) (model.Product, error) {
 	return product, nil
 }
 
-func (pRepo *productRepository) UpdateByID(id uuid.UUID, product model.Product) (model.Product, error) {
+func (pRepo *productRepository) UpdateByID(ctx context.Context, id uuid.UUID, product model.Product) (model.Product, error) {
 	product.ID = id
 	err := pRepo.db.Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&product).Clauses(clause.Returning{}).Updates(&product)
@@ -99,16 +100,24 @@ func (pRepo *productRepository) UpdateByID(id uuid.UUID, product model.Product) 
 	return product, nil
 }
 
-func (pRepo *productRepository) DeleteByID(id uuid.UUID) error {
-	res := pRepo.db.Delete(&model.Product{}, id)
+func (pRepo *productRepository) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
+	err := pRepo.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Product{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+			return err
+		}
 
-	if res.Error != nil {
-		return res.Error
-	}
+		res := tx.Delete(&model.Product{}, id)
 
-	if res.RowsAffected == 0 {
-		return domain.ErrProductNotFound
-	}
+		if res.Error != nil {
+			return res.Error
+		}
 
-	return nil
+		if res.RowsAffected == 0 {
+			return domain.ErrProductNotFound
+		}
+
+		return nil
+	})
+
+	return err
 }

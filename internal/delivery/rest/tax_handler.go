@@ -16,7 +16,9 @@ import (
 func (h *handler) GetAllTax(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
 
-	taxes, totalItems, err := h.tUsecase.GetAll(opts)
+	ctx := c.Request().Context()
+
+	taxes, totalItems, err := h.tUsecase.GetAll(ctx, opts)
 	if err != nil {
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -34,7 +36,9 @@ func (h *handler) CreateTax(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	tax, err := h.tUsecase.Create(req)
+	ctx := c.Request().Context()
+
+	tax, err := h.tUsecase.Create(ctx, req)
 	if err != nil {
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -50,10 +54,15 @@ func (h *handler) GetTaxByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
-	tax, err := h.tUsecase.GetByID(ID)
+	ctx := c.Request().Context()
+
+	tax, err := h.tUsecase.GetByID(ctx, ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrTaxNotFound) {
 			return response.ErrNotFound(c, domain.ErrTaxNotFound.Error())
+		}
+		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
+			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
 		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -75,7 +84,9 @@ func (h *handler) UpdateTaxByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
 	}
 
-	tax, err := h.tUsecase.UpdateByID(ID, req)
+	ctx := c.Request().Context()
+
+	tax, err := h.tUsecase.UpdateByID(ctx, ID, req)
 	if err != nil {
 		if errors.Is(err, domain.ErrTaxNotFound) {
 			return response.ErrNotFound(c, domain.ErrTaxNotFound.Error())
@@ -94,7 +105,9 @@ func (h *handler) DeleteTaxByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
-	if err := h.tUsecase.DeleteByID(ID); err != nil {
+	ctx := c.Request().Context()
+
+	if err := h.tUsecase.DeleteByID(ctx, ID); err != nil {
 		if errors.Is(err, domain.ErrTaxNotFound) {
 			return response.ErrNotFound(c, domain.ErrTaxNotFound.Error())
 		}

@@ -16,7 +16,9 @@ import (
 func (h *handler) GetAllCategory(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
 
-	categoryList, totalItems, err := h.cUsecase.GetAll(opts)
+	ctx := c.Request().Context()
+
+	categoryList, totalItems, err := h.cUsecase.GetAll(ctx, opts)
 	if err != nil {
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
@@ -39,6 +41,9 @@ func (h *handler) CreateCategory(c echo.Context) error {
 	category, err := h.cUsecase.Create(ctx, req)
 
 	if err != nil {
+		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
+			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
+		}
 		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
 	}
 
@@ -53,7 +58,9 @@ func (h *handler) GetCategoryByID(c echo.Context) error {
 		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
 	}
 
-	category, err := h.cUsecase.GetByID(ID)
+	ctx := c.Request().Context()
+
+	category, err := h.cUsecase.GetByID(ctx, ID)
 
 	if err != nil {
 		if errors.Is(err, domain.ErrCategoryNotFound) {

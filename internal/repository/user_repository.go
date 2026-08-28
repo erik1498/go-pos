@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
@@ -19,7 +20,7 @@ func GetUserRepository(db *gorm.DB) domain.UserRepository {
 	}
 }
 
-func (uRepo *userRepository) Register(user model.User) (model.User, error) {
+func (uRepo *userRepository) Register(ctx context.Context, user model.User) (model.User, error) {
 	if err := uRepo.db.Create(&user).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -32,7 +33,7 @@ func (uRepo *userRepository) Register(user model.User) (model.User, error) {
 	return user, nil
 }
 
-func (uRepo *userRepository) GetByUsername(username string) (model.User, error) {
+func (uRepo *userRepository) GetByUsername(ctx context.Context, username string) (model.User, error) {
 	var user model.User
 	if err := uRepo.db.First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

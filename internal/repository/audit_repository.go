@@ -18,6 +18,6 @@ func GetAuditLogRepository(db *gorm.DB) domain.AuditLogRepository {
 	}
 }
 
-func (al *auditRepository) Create(ctx context.Context, logData model.AuditLog) {
-	al.db.Create(&logData)
+func (al *auditRepository) Create(ctx context.Context, logData model.AuditLog) error {
+	return al.db.Create(&logData).Error
 }

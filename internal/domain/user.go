@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"go-pos/internal/model"
 )
@@ -17,12 +18,12 @@ var (
 )
 
 type UserRepository interface {
-	Register(user model.User) (model.User, error)
-	GetByUsername(username string) (model.User, error)
+	Register(ctx context.Context, user model.User) (model.User, error)
+	GetByUsername(ctx context.Context, username string) (model.User, error)
 }
 
 type UserUsecase interface {
-	Register(req model.RegisterRequest) (model.User, error)
-	Login(req model.LoginRequest) (model.UserSession, error)
-	CheckSession(userSession model.UserSession) (string, string, error)
+	Register(ctx context.Context, req model.RegisterRequest) (model.User, error)
+	Login(ctx context.Context, req model.LoginRequest) (model.UserSession, error)
+	CheckSession(ctx context.Context, userSession model.UserSession) (string, string, error)
 }
