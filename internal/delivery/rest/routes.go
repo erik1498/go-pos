@@ -18,7 +18,7 @@ func LoadRoutes(e *echo.Echo, h *handler, rdb *redis.Client) {
 	apiPublic := v1.Group("")
 
 	userGroup := apiPublic.Group("/users")
-	userGroup.POST("/register", h.RegisterUser)
+	userGroup.POST("/register", h.RegisterUser, middleware.Idempotency(rdb, "user"))
 	userGroup.POST("/login", h.LoginUser, middleware.RateLimiter(rdb, 5, 1*time.Minute))
 
 	apiPrivateGroup := v1.Group("")

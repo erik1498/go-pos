@@ -26,6 +26,8 @@ func GetDB(dsn string) *gorm.DB {
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
+	seedDB(db)
+
 	log.Println("POSTGRES: CONNECTED & POOLING CONFIGURED")
 	return db
 }

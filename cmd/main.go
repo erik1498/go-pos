@@ -8,6 +8,7 @@ import (
 	"go-pos/internal/repository"
 	"go-pos/internal/usecase"
 	"go-pos/pkg/middleware"
+	"go-pos/pkg/response"
 	"go-pos/pkg/utils"
 	"log/slog" // Beralih penuh ke slog
 	"net/http"
@@ -99,6 +100,8 @@ func main() {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
+
+	e.HTTPErrorHandler = response.CustomHTTPErrorHandler
 
 	e.Use(echoMid.Recover())
 	e.Use(echoMid.RequestID())
