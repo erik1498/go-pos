@@ -1,21 +1,46 @@
 package middleware
 
 import (
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+var sensitiveURIRegex = regexp.MustCompile(`(?i)(password|token|secret|key|pin)=([^&]+)`)
+
 func InitSlog() {
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	logDir := "logs"
+	if err := os.MkdirAll(logDir, 0700); err != nil {
+		panic("LOGGER: MAKE LOGS DIRECTORY FAIL, ERR: " + err.Error())
+	}
+
+	fileLogger := &lumberjack.Logger{
+		Filename:   filepath.Join(logDir, "app.log"),
+		MaxSize:    10,
+		MaxBackups: 7,
+		MaxAge:     90,
+		Compress:   true,
+	}
+
+	multiWriter := io.MultiWriter(os.Stdout, fileLogger)
+
+	handler := slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.String(slog.TimeKey, a.Value.Time().UTC().Format(time.RFC3339))
+			}
+			return a
+		},
 	})
 
-	logger := slog.New(handler)
-
-	slog.SetDefault(logger)
+	slog.SetDefault(slog.New(handler))
 }
 
 func SlogMiddleware() echo.MiddlewareFunc {
@@ -36,14 +61,21 @@ func SlogMiddleware() echo.MiddlewareFunc {
 				reqID = req.Header.Get(req.Header.Get(echo.HeaderXRequestID))
 			}
 
+			safeURI := sensitiveURIRegex.ReplaceAllString(req.RequestURI, "$1=***")
+
 			attrs := []slog.Attr{
 				slog.String("request_id", reqID),
 				slog.String("method", req.Method),
-				slog.String("uri", req.RequestURI),
+				slog.String("uri", safeURI),
 				slog.Int("status", res.Status),
 				slog.String("latency", time.Since(start).String()),
 				slog.String("ip", c.RealIP()),
 				slog.String("user_agent", req.UserAgent()),
+			}
+
+			meta, metaValid := req.Context().Value(AuditMetaKey).(AuditMeta)
+			if metaValid && meta.UserID != "" {
+				attrs = append(attrs, slog.String("actor_id", meta.UserID))
 			}
 
 			ctx := req.Context()
