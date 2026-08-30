@@ -3,7 +3,6 @@ package rest
 import (
 	"fmt"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"go-pos/pkg/response"
 	"go-pos/pkg/utils"
 	"net/http"
@@ -28,7 +27,7 @@ func (h *handler) GetAllCategory(c echo.Context) error {
 }
 
 func (h *handler) CreateCategory(c echo.Context) error {
-	var req model.CategoryRequest
+	var req domain.CreateCategoryParam
 	err := c.Bind(&req)
 
 	if err != nil {
@@ -73,7 +72,7 @@ func (h *handler) UpdateCategoryById(c echo.Context) error {
 		return fmt.Errorf("[delivery][rest][category_handler][UpdateCategoryById] invalid UUID format: %w", domain.ErrIDInvalid)
 	}
 
-	var req model.CategoryRequest
+	var req domain.UpdateCategoryParam
 	err = c.Bind(&req)
 
 	if err != nil {

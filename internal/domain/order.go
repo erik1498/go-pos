@@ -2,17 +2,9 @@ package domain
 
 import (
 	"context"
-	"errors"
 	"go-pos/internal/model"
 
 	"github.com/google/uuid"
-)
-
-var (
-	ErrOrderNotFound = errors.New("order not found")
-
-	ErrOrderNoIsAlreadyRegistered = errors.New("order no is already registered")
-	ErrProductStockIsNotEnough    = errors.New("product stock is not enough")
 )
 
 type OrderRepository interface {

@@ -9,8 +9,8 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"go-pos/internal/domain"
 	"io"
 	"os"
 	"strconv"
@@ -71,7 +71,7 @@ func DecryptAES(cipherText []byte, secretKey []byte) (string, error) {
 
 	nonceSize := aesGCM.NonceSize()
 	if len(cipherText) < nonceSize {
-		return "", domain.ErrChiperTextToShort
+		return "", errors.New("")
 	}
 
 	nonce, cipherTextMessage := cipherText[:nonceSize], cipherText[nonceSize:]

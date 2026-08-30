@@ -18,26 +18,15 @@ func CustomHTTPErrorHandler(err error, c echo.Context) {
 	var message string
 	var logLevel = slog.LevelError
 
-	switch {
+	if customErr, ok := errors.AsType[*domain.CustomError](err); ok {
+		statusCode = customErr.HTTPCode
+		message = customErr.Message
 
-	case errors.Is(err, domain.ErrCategoryNotFound), errors.Is(err, domain.ErrProductNotFound):
-		statusCode = http.StatusNotFound
-		message = err.Error()
-		logLevel = slog.LevelWarn
-
-	case errors.Is(err, domain.ErrIdempotencyKeyDuplicate):
-		statusCode = http.StatusConflict
-		message = domain.ErrIdempotencyKeyDuplicate.Error()
-		logLevel = slog.LevelWarn
-
-	case errors.Is(err, domain.ErrIDInvalid), errors.Is(err, domain.ErrBadRequest), errors.Is(err, domain.ErrIdempotencyRequired):
-		statusCode = http.StatusBadRequest
-		message = err.Error()
-		logLevel = slog.LevelWarn
-
-	default:
-		var echoErr *echo.HTTPError
-		if errors.As(err, &echoErr) {
+		if statusCode < 500 {
+			logLevel = slog.LevelWarn
+		}
+	} else {
+		if echoErr, ok := errors.AsType[*echo.HTTPError](err); ok {
 			statusCode = echoErr.Code
 			message = echoErr.Message.(string)
 			if statusCode < 500 {
@@ -45,7 +34,7 @@ func CustomHTTPErrorHandler(err error, c echo.Context) {
 			}
 		} else {
 			statusCode = http.StatusInternalServerError
-			message = domain.ErrInternalServer.Error()
+			message = domain.ErrInternalServer.Message
 		}
 	}
 

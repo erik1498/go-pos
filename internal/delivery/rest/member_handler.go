@@ -40,9 +40,6 @@ func (h *handler) CreateMember(c echo.Context) error {
 
 	member, err := h.mUsecase.Create(ctx, req)
 	if err != nil {
-		if errors.Is(err, domain.ErrPhoneNumberRequired) {
-			return response.ErrValidation(c, domain.ErrPhoneNumberRequired.Error(), nil)
-		}
 		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
 			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
 		}

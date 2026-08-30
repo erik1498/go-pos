@@ -25,7 +25,7 @@ func GetCategoryUsecase(aRepo domain.AuditLogRepository, cRepo domain.CategoryRe
 	}
 }
 
-func (cUsecase *categoryUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Category, int64, error) {
+func (cUsecase *categoryUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]domain.Category, int64, error) {
 	allowedFields := map[string]bool{
 		"name": true,
 	}
@@ -45,7 +45,7 @@ func (cUsecase *categoryUsecase) GetAll(ctx context.Context, opts domain.QueryOp
 	return categories, totalItems, nil
 }
 
-func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryRequest) (model.Category, error) {
+func (cUsecase *categoryUsecase) Create(ctx context.Context, req domain.CreateCategoryParam) (domain.Category, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -54,10 +54,10 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryR
 
 	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
 	if !ok || idemKey == "" {
-		return model.Category{}, fmt.Errorf("[usecase][category][Create] idempotency key required: %w", domain.ErrIdempotencyRequired)
+		return domain.Category{}, fmt.Errorf("[usecase][category][Create] idempotency key required: %w", domain.ErrIdempotencyRequired)
 	}
 
-	category := model.Category{
+	category := domain.Category{
 		ID:             uuid.Must(uuid.NewV7()),
 		Name:           req.Name,
 		CreatedBy:      actorID,
@@ -67,7 +67,7 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryR
 
 	category, err := cUsecase.cRepo.Create(ctx, category)
 	if err != nil {
-		return model.Category{}, fmt.Errorf("[usecase][category_usecase][Create] failed create from repo: %w", err)
+		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][Create] failed create from repo: %w", err)
 	}
 
 	if metaValid {
@@ -99,15 +99,15 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req model.CategoryR
 	return category, nil
 }
 
-func (cUsecase *categoryUsecase) GetByID(ctx context.Context, id uuid.UUID) (model.Category, error) {
+func (cUsecase *categoryUsecase) GetByID(ctx context.Context, id uuid.UUID) (domain.Category, error) {
 	category, err := cUsecase.cRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Category{}, fmt.Errorf("[usecase][category_usecase][GetByID] failed fetch from repo: %w", err)
+		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][GetByID] failed fetch from repo: %w", err)
 	}
 	return category, nil
 }
 
-func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid.UUID, req model.CategoryRequest) (model.Category, error) {
+func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid.UUID, req domain.UpdateCategoryParam) (domain.Category, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -116,10 +116,10 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 
 	oldCategory, err := cUsecase.cRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateCategoryByID] failed fetch from repo: %w", err)
+		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateCategoryByID] failed fetch from repo: %w", err)
 	}
 
-	category := model.Category{
+	category := domain.Category{
 		ID:        id,
 		Name:      req.Name,
 		UpdatedBy: actorID,
@@ -127,7 +127,7 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 
 	updatedCategory, err := cUsecase.cRepo.UpdateCategoryByID(ctx, id, category)
 	if err != nil {
-		return model.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateCategoryByID] failed update from repo: %w", err)
+		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateCategoryByID] failed update from repo: %w", err)
 	}
 
 	if metaValid {

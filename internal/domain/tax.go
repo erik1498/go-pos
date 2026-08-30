@@ -2,14 +2,9 @@ package domain
 
 import (
 	"context"
-	"errors"
 	"go-pos/internal/model"
 
 	"github.com/google/uuid"
-)
-
-var (
-	ErrTaxNotFound = errors.New("tax data not found")
 )
 
 type TaxRepository interface {

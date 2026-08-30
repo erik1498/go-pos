@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go-pos/internal/domain"
 	"go-pos/internal/model"
@@ -67,15 +68,15 @@ func (mUsecase *memberUsecase) GetAll(ctx context.Context, opts domain.QueryOpti
 	for _, m := range encryptedMembers {
 		m.Name, err = utils.DecryptAES(m.NameEncrypted, mUsecase.aesKey)
 		if err != nil {
-			return nil, 0, domain.ErrDecryptName
+			return nil, 0, err
 		}
 		m.Phone, err = utils.DecryptAES(m.PhoneEncrypted, mUsecase.aesKey)
 		if err != nil {
-			return nil, 0, domain.ErrDecryptPhone
+			return nil, 0, err
 		}
 		m.Email, err = utils.DecryptAES(m.EmailEncrypted, mUsecase.aesKey)
 		if err != nil {
-			return nil, 0, domain.ErrDecryptEmail
+			return nil, 0, err
 		}
 		decryptedMembers = append(decryptedMembers, m)
 	}
@@ -97,7 +98,7 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 
 	req.Phone = strings.TrimSpace(req.Phone)
 	if req.Phone == "" {
-		return model.Member{}, domain.ErrPhoneNumberRequired
+		return model.Member{}, errors.New("")
 	}
 
 	ID := uuid.Must(uuid.NewV7())
@@ -105,19 +106,19 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 
 	nameEnc, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, domain.ErrEncryptName
+		return model.Member{}, err
 	}
 
 	phoneEnc, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, domain.ErrEncryptPhone
+		return model.Member{}, err
 	}
 
 	var emailEnc []byte
 	if req.Email != "" {
 		emailEnc, err = utils.EncryptAES(req.Email, mUsecase.aesKey)
 		if err != nil {
-			return model.Member{}, domain.ErrEncryptEmail
+			return model.Member{}, err
 		}
 	}
 
@@ -184,15 +185,15 @@ func (mUsecase *memberUsecase) GetByID(ctx context.Context, id uuid.UUID) (model
 
 	member.Name, err = utils.DecryptAES(member.NameEncrypted, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, domain.ErrDecryptName
+		return model.Member{}, err
 	}
 	member.Email, err = utils.DecryptAES(member.EmailEncrypted, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, domain.ErrDecryptEmail
+		return model.Member{}, err
 	}
 	member.Phone, err = utils.DecryptAES(member.PhoneEncrypted, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, domain.ErrDecryptPhone
+		return model.Member{}, err
 	}
 
 	return member, nil
@@ -213,15 +214,15 @@ func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req
 	nameEncrypted, err := utils.EncryptAES(req.Name, mUsecase.aesKey)
 
 	if err != nil {
-		return model.Member{}, domain.ErrEncryptName
+		return model.Member{}, err
 	}
 	phoneEncrypted, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, domain.ErrEncryptName
+		return model.Member{}, err
 	}
 	emailEncrypted, err := utils.EncryptAES(req.Email, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, domain.ErrEncryptName
+		return model.Member{}, err
 	}
 
 	phoneBindex := utils.GenerateBlindedIndex(req.Phone, mUsecase.bindexKey)

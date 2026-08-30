@@ -47,7 +47,7 @@ func (uUsecase *userUsecase) Register(ctx context.Context, req model.RegisterReq
 
 	emailEncrypted, err := utils.EncryptAES(req.Email, uUsecase.aesKey)
 	if err != nil {
-		return model.User{}, domain.ErrEncryptEmail
+		return model.User{}, err
 	}
 
 	passwordHash, err := utils.HashPassword(req.Password, uUsecase.aesKey)

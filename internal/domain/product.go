@@ -2,15 +2,9 @@ package domain
 
 import (
 	"context"
-	"errors"
 	"go-pos/internal/model"
 
 	"github.com/google/uuid"
-)
-
-var (
-	ErrProductNotFound               = errors.New("product data not found")
-	ErrProductSKUIsAlreadyRegistered = errors.New("product sku is already registered")
 )
 
 type ProductRepository interface {
