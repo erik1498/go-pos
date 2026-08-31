@@ -4,13 +4,52 @@ import (
 	"context"
 	"errors"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"go-pos/pkg/utils"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+type TaxDAO struct {
+	ID             uuid.UUID       `gorm:"primaryKey;type:uuid;default:gen_random_uuid();uniqueIndex;not null"`
+	Name           string          `gorm:"type:varchar(50);uniqueIndex:idx_active_tax_name,where:deleted_at IS NULL;not null"`
+	Rate           decimal.Decimal `gorm:"type:numeric(5,2);not null"`
+	IsActive       bool            `gorm:"type:boolean;default:true"`
+	IdempotencyKey string          `gorm:"type:varchar(100);uniqueIndex;not null"`
+	CreatedBy      uuid.UUID       `gorm:"type:uuid;not null"`
+	UpdatedBy      uuid.UUID       `gorm:"type:uuid;not null"`
+	DeletedBy      *uuid.UUID      `gorm:"type:uuid"`
+	CreatedAt      time.Time       `gorm:"autoCreateTime"`
+	UpdatedAt      time.Time       `gorm:"autoUpdateTime"`
+	DeletedAt      gorm.DeletedAt  `gorm:"index"`
+}
+
+func (TaxDAO) TableName() string {
+	return "taxes"
+}
+
+func (dao *TaxDAO) ToDomain() domain.Tax {
+	var deletedAt *time.Time
+	if dao.DeletedAt.Valid {
+		deletedAt = &dao.DeletedAt.Time
+	}
+	return domain.Tax{
+		ID:             dao.ID,
+		Name:           dao.Name,
+		Rate:           dao.Rate,
+		IsActive:       dao.IsActive,
+		IdempotencyKey: dao.IdempotencyKey,
+		CreatedBy:      dao.CreatedBy,
+		UpdatedBy:      dao.UpdatedBy,
+		DeletedBy:      dao.DeletedBy,
+		CreatedAt:      dao.CreatedAt,
+		UpdatedAt:      dao.UpdatedAt,
+		DeletedAt:      deletedAt,
+	}
+}
 
 type taxRepository struct {
 	db *gorm.DB
@@ -22,11 +61,11 @@ func GetTaxRepository(db *gorm.DB) domain.TaxRepository {
 	}
 }
 
-func (tRepo *taxRepository) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Tax, int64, error) {
-	var taxes []model.Tax
+func (tRepo *taxRepository) GetAll(ctx context.Context, opts domain.QueryOptions) ([]domain.Tax, int64, error) {
+	var taxes []domain.Tax
 	var totalItems int64
 
-	dbQuery := tRepo.db.Model(&model.Tax{})
+	dbQuery := tRepo.db.Model(&domain.Tax{})
 	if opts.Search != "" {
 		dbQuery = dbQuery.Where("name ILIKE ?", "%"+opts.Search+"%")
 	}
@@ -47,35 +86,35 @@ func (tRepo *taxRepository) GetAll(ctx context.Context, opts domain.QueryOptions
 	return taxes, totalItems, nil
 }
 
-func (tRepo *taxRepository) Create(ctx context.Context, tax model.Tax) (model.Tax, error) {
+func (tRepo *taxRepository) Create(ctx context.Context, tax domain.Tax) (domain.Tax, error) {
 	if err := tRepo.db.Create(&tax).Error; err != nil {
-		return model.Tax{}, err
+		return domain.Tax{}, err
 	}
 	return tax, nil
 }
 
-func (tRepo *taxRepository) GetByID(ctx context.Context, id uuid.UUID) (model.Tax, error) {
-	var tax model.Tax
+func (tRepo *taxRepository) GetByID(ctx context.Context, id uuid.UUID) (domain.Tax, error) {
+	var tax domain.Tax
 
 	if err := tRepo.db.First(&tax, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.Tax{}, domain.ErrTaxNotFound
+			return domain.Tax{}, domain.ErrTaxNotFound
 		}
-		return model.Tax{}, err
+		return domain.Tax{}, err
 	}
 
 	return tax, nil
 }
 
-func (tRepo *taxRepository) UpdateByID(ctx context.Context, id uuid.UUID, tax model.Tax) (model.Tax, error) {
-	res := tRepo.db.Where(&model.Tax{ID: id}).Clauses(clause.Returning{}).Updates(&tax)
+func (tRepo *taxRepository) UpdateByID(ctx context.Context, id uuid.UUID, tax domain.Tax) (domain.Tax, error) {
+	res := tRepo.db.Where(&domain.Tax{ID: id}).Clauses(clause.Returning{}).Updates(&tax)
 
 	if res.Error != nil {
-		return model.Tax{}, res.Error
+		return domain.Tax{}, res.Error
 	}
 
 	if res.RowsAffected == 0 {
-		return model.Tax{}, domain.ErrTaxNotFound
+		return domain.Tax{}, domain.ErrTaxNotFound
 	}
 
 	return tax, nil
@@ -83,11 +122,11 @@ func (tRepo *taxRepository) UpdateByID(ctx context.Context, id uuid.UUID, tax mo
 
 func (tRepo *taxRepository) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
 	err := tRepo.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.Tax{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+		if err := tx.Model(&domain.Tax{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
 			return err
 		}
 
-		res := tx.Delete(&model.Tax{}, id)
+		res := tx.Delete(&domain.Tax{}, id)
 
 		if res.Error != nil {
 			return res.Error

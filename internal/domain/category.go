@@ -13,18 +13,18 @@ type Category struct {
 	IdempotencyKey string     `json:"idempotency_key"`
 	CreatedBy      uuid.UUID  `json:"created_by"`
 	UpdatedBy      uuid.UUID  `json:"updated_by"`
-	DeletedBy      *uuid.UUID `json:"-"`
+	DeletedBy      *uuid.UUID `json:"deleted_by"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	DeletedAt      *time.Time `json:"-"`
 }
 
 type CreateCategoryParam struct {
-	Name string
+	Name string `json:"name"`
 }
 
 type UpdateCategoryParam struct {
-	Name string
+	Name string `json:"name"`
 }
 
 type CategoryRepository interface {

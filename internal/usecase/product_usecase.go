@@ -28,7 +28,7 @@ func GetProductUsecase(aRepo domain.AuditLogRepository, pRepo domain.ProductRepo
 	}
 }
 
-func (pUsecase *productUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Product, int64, error) {
+func (pUsecase *productUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]domain.Product, int64, error) {
 	allowedFields := map[string]bool{
 		"name": true,
 		"sku":  true,
@@ -44,7 +44,7 @@ func (pUsecase *productUsecase) GetAll(ctx context.Context, opts domain.QueryOpt
 	return pUsecase.pRepo.GetAll(ctx, cleanOpts)
 }
 
-func (pUsecase *productUsecase) Create(ctx context.Context, req model.ProductRequest) (model.Product, error) {
+func (pUsecase *productUsecase) Create(ctx context.Context, req domain.CreateProductParam) (domain.Product, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -53,15 +53,15 @@ func (pUsecase *productUsecase) Create(ctx context.Context, req model.ProductReq
 
 	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
 	if !ok && idemKey == "" {
-		return model.Product{}, domain.ErrIdempotencyKeyDuplicate
+		return domain.Product{}, domain.ErrIdempotencyKeyDuplicate
 	}
 
-	category, err := pUsecase.cRepo.GetByID(ctx, uuid.MustParse(req.CategoryID))
+	category, err := pUsecase.cRepo.GetByID(ctx, uuid.MustParse(req.CategoryID.String()))
 	if err != nil {
-		return model.Product{}, err
+		return domain.Product{}, err
 	}
 
-	product := model.Product{
+	product := domain.Product{
 		ID:             uuid.Must(uuid.NewV7()),
 		CategoryID:     category.ID,
 		Name:           req.Name,
@@ -72,11 +72,11 @@ func (pUsecase *productUsecase) Create(ctx context.Context, req model.ProductReq
 		UpdatedBy:      actorID,
 	}
 
-	var taxes []model.Tax
-	for _, item := range req.Tax {
+	var taxes []domain.Tax
+	for _, item := range req.Taxes {
 		tax, err := pUsecase.tRepo.GetByID(ctx, item.ID)
 		if err != nil {
-			return model.Product{}, err
+			return domain.Product{}, err
 		}
 
 		taxes = append(taxes, tax)
@@ -86,7 +86,7 @@ func (pUsecase *productUsecase) Create(ctx context.Context, req model.ProductReq
 
 	product, err = pUsecase.pRepo.Create(ctx, product)
 	if err != nil {
-		return model.Product{}, err
+		return domain.Product{}, err
 	}
 
 	if metaValid {
@@ -114,45 +114,45 @@ func (pUsecase *productUsecase) Create(ctx context.Context, req model.ProductReq
 	return product, nil
 }
 
-func (pUsecase *productUsecase) GetByID(ctx context.Context, id uuid.UUID) (model.Product, error) {
+func (pUsecase *productUsecase) GetByID(ctx context.Context, id uuid.UUID) (domain.Product, error) {
 	product, err := pUsecase.pRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Product{}, err
+		return domain.Product{}, err
 	}
 
 	return product, nil
 }
 
-func (pUsecase *productUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req model.ProductRequest) (model.Product, error) {
+func (pUsecase *productUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req domain.UpdateProductParam) (domain.Product, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
 		actorID = uuid.MustParse(meta.UserID)
 	}
 
-	category, err := pUsecase.cRepo.GetByID(ctx, uuid.MustParse(req.CategoryID))
+	category, err := pUsecase.cRepo.GetByID(ctx, uuid.MustParse(req.CategoryID.String()))
 	if err != nil {
-		return model.Product{}, err
+		return domain.Product{}, err
 	}
 
 	oldProduct, err := pUsecase.pRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Product{}, err
+		return domain.Product{}, err
 	}
 
-	product := model.Product{
+	product := domain.Product{
 		CategoryID: category.ID,
 		Name:       req.Name,
 		SKU:        req.SKU,
 		Price:      req.Price,
-		Taxes:      []model.Tax{},
+		Taxes:      []domain.Tax{},
 	}
 
-	var taxes []model.Tax
-	for _, item := range req.Tax {
+	var taxes []domain.Tax
+	for _, item := range req.Taxes {
 		tax, err := pUsecase.tRepo.GetByID(ctx, item.ID)
 		if err != nil {
-			return model.Product{}, domain.ErrTaxNotFound
+			return domain.Product{}, domain.ErrTaxNotFound
 		}
 		taxes = append(taxes, tax)
 	}
@@ -161,7 +161,7 @@ func (pUsecase *productUsecase) UpdateByID(ctx context.Context, id uuid.UUID, re
 
 	updatedProduct, err := pUsecase.pRepo.UpdateByID(ctx, id, product)
 	if err != nil {
-		return model.Product{}, err
+		return domain.Product{}, err
 	}
 
 	if metaValid {

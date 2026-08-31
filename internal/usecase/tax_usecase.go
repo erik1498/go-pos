@@ -24,7 +24,7 @@ func GetTaxUsecase(aRepo domain.AuditLogRepository, tRepo domain.TaxRepository) 
 	}
 }
 
-func (tUsecase *taxUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Tax, int64, error) {
+func (tUsecase *taxUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]domain.Tax, int64, error) {
 	allowedSorts := map[string]bool{
 		"name":       true,
 		"created_at": true,
@@ -39,7 +39,7 @@ func (tUsecase *taxUsecase) GetAll(ctx context.Context, opts domain.QueryOptions
 	return tUsecase.tRepo.GetAll(ctx, cleanOpts)
 }
 
-func (tUsecase *taxUsecase) Create(ctx context.Context, req model.TaxRequest) (model.Tax, error) {
+func (tUsecase *taxUsecase) Create(ctx context.Context, req domain.CreateTaxParam) (domain.Tax, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -48,12 +48,12 @@ func (tUsecase *taxUsecase) Create(ctx context.Context, req model.TaxRequest) (m
 
 	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
 	if !ok && idemKey == "" {
-		return model.Tax{}, domain.ErrIdempotencyKeyDuplicate
+		return domain.Tax{}, domain.ErrIdempotencyKeyDuplicate
 	}
 
 	ID := uuid.Must(uuid.NewV7())
 
-	tax, err := tUsecase.tRepo.Create(ctx, model.Tax{
+	tax, err := tUsecase.tRepo.Create(ctx, domain.Tax{
 		ID:             ID,
 		Name:           req.Name,
 		Rate:           req.Rate,
@@ -63,7 +63,7 @@ func (tUsecase *taxUsecase) Create(ctx context.Context, req model.TaxRequest) (m
 	})
 
 	if err != nil {
-		return model.Tax{}, err
+		return domain.Tax{}, err
 	}
 
 	if metaValid {
@@ -91,16 +91,16 @@ func (tUsecase *taxUsecase) Create(ctx context.Context, req model.TaxRequest) (m
 	return tax, nil
 }
 
-func (tUsecase *taxUsecase) GetByID(ctx context.Context, id uuid.UUID) (model.Tax, error) {
+func (tUsecase *taxUsecase) GetByID(ctx context.Context, id uuid.UUID) (domain.Tax, error) {
 	tax, err := tUsecase.tRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Tax{}, err
+		return domain.Tax{}, err
 	}
 
 	return tax, nil
 }
 
-func (tUsecase *taxUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req model.TaxRequest) (model.Tax, error) {
+func (tUsecase *taxUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req domain.UpdateTaxParam) (domain.Tax, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -109,10 +109,10 @@ func (tUsecase *taxUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req mo
 
 	oldTax, err := tUsecase.tRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Tax{}, err
+		return domain.Tax{}, err
 	}
 
-	tax := model.Tax{
+	tax := domain.Tax{
 		Name:      req.Name,
 		Rate:      req.Rate,
 		UpdatedBy: actorID,
@@ -120,7 +120,7 @@ func (tUsecase *taxUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req mo
 
 	updatedTax, err := tUsecase.tRepo.UpdateByID(ctx, id, tax)
 	if err != nil {
-		return model.Tax{}, err
+		return domain.Tax{}, err
 	}
 
 	if metaValid {
