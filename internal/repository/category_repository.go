@@ -76,10 +76,10 @@ func GetCategoryRepository(db *gorm.DB) domain.CategoryRepository {
 }
 
 func (cRepo *categoryRepo) GetAll(ctx context.Context, opts domain.QueryOptions) ([]domain.Category, int64, error) {
-	var categoryList = []domain.Category{}
+	var daoList []CategoryDAO
 	var totalItems int64
 
-	dbQuery := cRepo.db.WithContext(ctx).Model(&domain.Category{})
+	dbQuery := cRepo.db.WithContext(ctx).Model(&CategoryDAO{})
 
 	if opts.Search != "" {
 		dbQuery = dbQuery.Where("name ILIKE ?", "%"+opts.Search+"%")
@@ -94,8 +94,13 @@ func (cRepo *categoryRepo) GetAll(ctx context.Context, opts domain.QueryOptions)
 		return nil, 0, fmt.Errorf("[repository][category_repository][GetAll] db query failed: %w", err)
 	}
 
-	if err := dbQuery.Order(opts.Sort).Scopes(utils.PaginationScope(opts.Page, opts.Limit)).Find(&categoryList).Error; err != nil {
+	if err := dbQuery.Order(opts.Sort).Scopes(utils.PaginationScope(opts.Page, opts.Limit)).Find(&daoList).Error; err != nil {
 		return nil, 0, fmt.Errorf("[repository][category_repository][GetAll] db query failed: %w", err)
+	}
+
+	var categoryList []domain.Category
+	for _, dao := range daoList {
+		categoryList = append(categoryList, dao.ToDomain())
 	}
 
 	return categoryList, totalItems, nil
@@ -131,27 +136,29 @@ func (cRepo *categoryRepo) GetByID(ctx context.Context, id uuid.UUID) (domain.Ca
 	return dao.ToDomain(), nil
 }
 
-func (cRepo *categoryRepo) UpdateCategoryByID(ctx context.Context, id uuid.UUID, category domain.Category) (domain.Category, error) {
-	res := cRepo.db.WithContext(ctx).Where(&domain.Category{ID: id}).Clauses(clause.Returning{}).Updates(&category)
+func (cRepo *categoryRepo) UpdateByID(ctx context.Context, id uuid.UUID, category domain.Category) (domain.Category, error) {
+	dao := FromDomainCategory(category)
+
+	res := cRepo.db.WithContext(ctx).Model(&CategoryDAO{}).Where("id = ?", id).Clauses(clause.Returning{}).Updates(&dao)
 
 	if res.Error != nil {
-		return domain.Category{}, fmt.Errorf("[repository][category_repository][UpdateCategoryByID] db query failed: %w", res.Error)
+		return domain.Category{}, fmt.Errorf("[repository][category_repository][UpdateByID] db query failed: %w", res.Error)
 	}
 
 	if res.RowsAffected == 0 {
-		return domain.Category{}, fmt.Errorf("[repository][category_repository][UpdateCategoryByID] record not found: %w", domain.ErrCategoryNotFound)
+		return domain.Category{}, fmt.Errorf("[repository][category_repository][UpdateByID] record not found: %w", domain.ErrCategoryNotFound)
 	}
 
-	return category, nil
+	return dao.ToDomain(), nil
 }
 
-func (cRepo *categoryRepo) DeleteCategoryByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
+func (cRepo *categoryRepo) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
 	err := cRepo.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&domain.Category{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+		if err := tx.Model(&CategoryDAO{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
 			return fmt.Errorf("[repository][category_repository][DeleteCategoryByID] db query failed: %w", err)
 		}
 
-		res := tx.Delete(&domain.Category{}, id)
+		res := tx.Delete(&CategoryDAO{}, id)
 
 		if res.Error != nil {
 			return fmt.Errorf("[repository][category_repository][DeleteCategoryByID] db query failed: %w", res.Error)

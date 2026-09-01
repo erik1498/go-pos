@@ -9,27 +9,27 @@ import (
 )
 
 type Tax struct {
-	ID             uuid.UUID       `json:"id"`
-	Name           string          `json:"name"`
-	Rate           decimal.Decimal `json:"rate"`
-	IsActive       bool            `json:"is_active"`
-	IdempotencyKey string          `json:"idempotency_key"`
-	CreatedBy      uuid.UUID       `json:"created_by"`
-	UpdatedBy      uuid.UUID       `json:"updated_by"`
-	DeletedBy      *uuid.UUID      `json:"deleted_by"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	DeletedAt      *time.Time      `json:"deleted_at"`
+	ID             uuid.UUID
+	Name           string
+	Rate           decimal.Decimal
+	IsActive       bool
+	IdempotencyKey string
+	CreatedBy      uuid.UUID
+	UpdatedBy      uuid.UUID
+	DeletedBy      *uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      *time.Time
 }
 
 type CreateTaxParam struct {
-	Name string          `json:""`
-	Rate decimal.Decimal `json:""`
+	Name string
+	Rate decimal.Decimal
 }
 
 type UpdateTaxParam struct {
-	Name string          `json:""`
-	Rate decimal.Decimal `json:""`
+	Name string
+	Rate decimal.Decimal
 }
 
 type TaxRepository interface {

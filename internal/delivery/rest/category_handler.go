@@ -6,14 +6,42 @@ import (
 	"go-pos/pkg/response"
 	"go-pos/pkg/utils"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
+type CategoryRequest struct {
+	Name string `json:"name" validate:"required,max=100"`
+}
+
+type CategoryResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func toCategoryResponse(c domain.Category) CategoryResponse {
+	return CategoryResponse{
+		ID:        c.ID,
+		Name:      c.Name,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
+}
+
+func toCategoryResponseList(categories []domain.Category) []CategoryResponse {
+	var res []CategoryResponse
+	for _, c := range categories {
+		res = append(res, toCategoryResponse(c))
+	}
+	return res
+}
+
 func (h *handler) GetAllCategory(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
-
 	ctx := c.Request().Context()
 
 	categoryList, totalItems, err := h.cUsecase.GetAll(ctx, opts)
@@ -23,26 +51,31 @@ func (h *handler) GetAllCategory(c echo.Context) error {
 
 	meta := utils.BuildMetaPage(opts.Page, opts.Limit, totalItems)
 
-	return response.SuccessWithMeta(c, http.StatusOK, domain.SuccessGetData, categoryList, meta)
+	return response.SuccessWithMeta(c, http.StatusOK, domain.SuccessGetData, toCategoryResponseList(categoryList), meta)
 }
 
 func (h *handler) CreateCategory(c echo.Context) error {
-	var req domain.CreateCategoryParam
-	err := c.Bind(&req)
-
-	if err != nil {
+	var req CategoryRequest
+	if err := c.Bind(&req); err != nil {
 		return fmt.Errorf("[delivery][rest][category_handler][CreateCategory] invalid body: %w", domain.ErrBadRequest)
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return fmt.Errorf("[delivery][rest][category_handler][CreateCategory] validation error: %w", domain.ErrBadRequest)
 	}
 
 	ctx := c.Request().Context()
 
-	category, err := h.cUsecase.Create(ctx, req)
+	param := domain.CreateCategoryParam{
+		Name: req.Name,
+	}
+	category, err := h.cUsecase.Create(ctx, param)
 
 	if err != nil {
 		return err
 	}
 
-	return response.Success(c, http.StatusOK, domain.SuccessCreateData, category)
+	return response.Success(c, http.StatusOK, domain.SuccessCreateData, toCategoryResponse(category))
 }
 
 func (h *handler) GetCategoryByID(c echo.Context) error {
@@ -61,7 +94,7 @@ func (h *handler) GetCategoryByID(c echo.Context) error {
 		return err
 	}
 
-	return response.Success(c, http.StatusOK, domain.SuccessGetDataByID, category)
+	return response.Success(c, http.StatusOK, domain.SuccessGetDataByID, toCategoryResponse(category))
 }
 
 func (h *handler) UpdateCategoryById(c echo.Context) error {
@@ -72,20 +105,25 @@ func (h *handler) UpdateCategoryById(c echo.Context) error {
 		return fmt.Errorf("[delivery][rest][category_handler][UpdateCategoryById] invalid UUID format: %w", domain.ErrIDInvalid)
 	}
 
-	var req domain.UpdateCategoryParam
-	err = c.Bind(&req)
-
-	if err != nil {
+	var req CategoryRequest
+	if err := c.Bind(&req); err != nil {
 		return fmt.Errorf("[delivery][rest][category_handler][UpdateCategoryById] invalid body: %w", domain.ErrBadRequest)
 	}
 
+	if err := c.Validate(&req); err != nil {
+		return fmt.Errorf("[delivery][rest][category_handler][UpdateCategoryById] validation error: %w", domain.ErrBadRequest)
+	}
+
 	ctx := c.Request().Context()
-	category, err := h.cUsecase.UpdateCategoryByID(ctx, ID, req)
+	param := domain.UpdateCategoryParam{
+		Name: req.Name,
+	}
+	category, err := h.cUsecase.UpdateByID(ctx, ID, param)
 	if err != nil {
 		return err
 	}
 
-	return response.Success(c, http.StatusOK, domain.SuccessUpdateData, category)
+	return response.Success(c, http.StatusOK, domain.SuccessUpdateData, toCategoryResponse(category))
 }
 
 func (h *handler) DeleteCategoryByID(c echo.Context) error {
@@ -98,7 +136,7 @@ func (h *handler) DeleteCategoryByID(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
-	err = h.cUsecase.DeleteCategoryByID(ctx, ID)
+	err = h.cUsecase.DeleteByID(ctx, ID)
 	if err != nil {
 		return err
 	}

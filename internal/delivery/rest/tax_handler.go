@@ -1,17 +1,44 @@
 package rest
 
 import (
-	"encoding/json"
-	"errors"
+	"fmt"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"go-pos/pkg/response"
 	"go-pos/pkg/utils"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/shopspring/decimal"
 )
+
+type TaxRequest struct {
+	Name string          `json:"name" validate:"required,max=100"`
+	Rate decimal.Decimal `json:"rate" validate:"required"`
+}
+
+type TaxResponse struct {
+	Name      string
+	Rate      decimal.Decimal
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func toTaxResponse(t domain.Tax) TaxResponse {
+	return TaxResponse{
+		Name: t.Name,
+		Rate: t.Rate,
+	}
+}
+
+func toTaxResponseList(taxes []domain.Tax) []TaxResponse {
+	var res []TaxResponse
+	for _, t := range taxes {
+		res = append(res, toTaxResponse(t))
+	}
+	return res
+}
 
 func (h *handler) GetAllTax(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
@@ -20,30 +47,36 @@ func (h *handler) GetAllTax(c echo.Context) error {
 
 	taxes, totalItems, err := h.tUsecase.GetAll(ctx, opts)
 	if err != nil {
-		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
+		return err
 	}
 
 	meta := utils.BuildMetaPage(opts.Page, opts.Limit, totalItems)
 
-	return response.SuccessWithMeta(c, http.StatusOK, domain.SuccessGetData, taxes, meta)
+	return response.SuccessWithMeta(c, http.StatusOK, domain.SuccessGetData, toTaxResponseList(taxes), meta)
 }
 
 func (h *handler) CreateTax(c echo.Context) error {
-	var req model.TaxRequest
+	var req TaxRequest
+	if err := c.Bind(&req); err != nil {
+		return fmt.Errorf("[delivery][rest][tax_handler][CreateTax] invalid body: %w", domain.ErrBadRequest)
+	}
 
-	err := json.NewDecoder(c.Request().Body).Decode(&req)
-	if err != nil {
-		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
+	if err := c.Validate(&req); err != nil {
+		return fmt.Errorf("[delivery][rest][tax_handler][CreateTax] validation error: %w", domain.ErrBadRequest)
 	}
 
 	ctx := c.Request().Context()
 
-	tax, err := h.tUsecase.Create(ctx, req)
+	param := domain.CreateTaxParam{
+		Name: req.Name,
+		Rate: req.Rate,
+	}
+	tax, err := h.tUsecase.Create(ctx, param)
 	if err != nil {
-		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
+		return err
 	}
 
-	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, tax)
+	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, toTaxResponse(tax))
 }
 
 func (h *handler) GetTaxByID(c echo.Context) error {
@@ -51,23 +84,17 @@ func (h *handler) GetTaxByID(c echo.Context) error {
 
 	ID, err := uuid.Parse(idParam)
 	if err != nil {
-		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
+		return fmt.Errorf("[delivery][rest][tax_handler][GetTaxByID] invalid UUID format: %w", domain.ErrIDInvalid)
 	}
 
 	ctx := c.Request().Context()
 
 	tax, err := h.tUsecase.GetByID(ctx, ID)
 	if err != nil {
-		if errors.Is(err, domain.ErrTaxNotFound) {
-			return response.ErrNotFound(c, domain.ErrTaxNotFound.Error())
-		}
-		if errors.Is(err, domain.ErrIdempotencyKeyDuplicate) {
-			return response.ErrConflictRequest(c, domain.ErrIdempotencyKeyDuplicate.Error())
-		}
-		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
+		return err
 	}
 
-	return response.Success(c, http.StatusOK, domain.SuccessGetDataByID, tax)
+	return response.Success(c, http.StatusOK, domain.SuccessGetDataByID, toTaxResponse(tax))
 }
 
 func (h *handler) UpdateTaxByID(c echo.Context) error {
@@ -75,26 +102,31 @@ func (h *handler) UpdateTaxByID(c echo.Context) error {
 
 	ID, err := uuid.Parse(idParam)
 	if err != nil {
-		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
+		return fmt.Errorf("[delivery][rest][tax_handler][UpdateTaxByID] invalid UUID format: %w", domain.ErrIDInvalid)
 	}
 
-	var req model.TaxRequest
-	err = json.NewDecoder(c.Request().Body).Decode(&req)
-	if err != nil {
-		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())
+	var req TaxRequest
+
+	if err := c.Bind(&req); err != nil {
+		return fmt.Errorf("[delivery][rest][tax_handler][UpdateTaxByID] invalid body: %w", domain.ErrBadRequest)
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return fmt.Errorf("[delivery][rest][tax_handler][UpdateTaxByID] validation error: %w", domain.ErrBadRequest)
 	}
 
 	ctx := c.Request().Context()
 
-	tax, err := h.tUsecase.UpdateByID(ctx, ID, req)
+	param := domain.UpdateTaxParam{
+		Name: req.Name,
+		Rate: req.Rate,
+	}
+	tax, err := h.tUsecase.UpdateByID(ctx, ID, param)
 	if err != nil {
-		if errors.Is(err, domain.ErrTaxNotFound) {
-			return response.ErrNotFound(c, domain.ErrTaxNotFound.Error())
-		}
-		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
+		return err
 	}
 
-	return response.Success(c, http.StatusOK, domain.SuccessUpdateData, tax)
+	return response.Success(c, http.StatusOK, domain.SuccessUpdateData, toTaxResponse(tax))
 }
 
 func (h *handler) DeleteTaxByID(c echo.Context) error {
@@ -102,16 +134,13 @@ func (h *handler) DeleteTaxByID(c echo.Context) error {
 
 	ID, err := uuid.Parse(idParam)
 	if err != nil {
-		return response.ErrBadRequest(c, domain.ErrIDInvalid.Error())
+		return fmt.Errorf("[delivery][rest][tax_handler][DeleteTaxByID] invalid UUID format: %w", domain.ErrIDInvalid)
 	}
 
 	ctx := c.Request().Context()
 
 	if err := h.tUsecase.DeleteByID(ctx, ID); err != nil {
-		if errors.Is(err, domain.ErrTaxNotFound) {
-			return response.ErrNotFound(c, domain.ErrTaxNotFound.Error())
-		}
-		return response.ErrInternalServer(c, domain.ErrInternalServer.Error())
+		return err
 	}
 
 	return response.NoContent(c)

@@ -31,14 +31,14 @@ func GetAuthMiddleware(uUsecase domain.UserUsecase) *authMiddleware {
 	}
 }
 
-func getUserSessionData(r *http.Request) (model.UserSession, error) {
+func getUserSessionData(r *http.Request) (domain.UserSession, error) {
 	authString := r.Header.Get("Authorization")
 	splitString := strings.Split(authString, " ")
 	if len(splitString) != 2 {
-		return model.UserSession{}, domain.ErrUnauthorized
+		return domain.UserSession{}, domain.ErrUnauthorized
 	}
 
-	return model.UserSession{
+	return domain.UserSession{
 		AccessToken: splitString[1],
 	}, nil
 }

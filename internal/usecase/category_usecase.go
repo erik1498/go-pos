@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
 	"log/slog"
@@ -57,38 +56,44 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req domain.CreateCa
 		return domain.Category{}, fmt.Errorf("[usecase][category][Create] idempotency key required: %w", domain.ErrIdempotencyRequired)
 	}
 
-	category := domain.Category{
+	category, err := cUsecase.cRepo.Create(ctx, domain.Category{
 		ID:             uuid.Must(uuid.NewV7()),
 		Name:           req.Name,
 		CreatedBy:      actorID,
 		UpdatedBy:      actorID,
 		IdempotencyKey: idemKey,
-	}
+	})
 
-	category, err := cUsecase.cRepo.Create(ctx, category)
 	if err != nil {
 		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][Create] failed create from repo: %w", err)
 	}
 
 	if metaValid {
-		newValueJSON, _ := json.Marshal(category)
+		newValuesJSON, errMarshal := json.Marshal(category)
 
-		auditLog := model.AuditLog{
+		if errMarshal != nil {
+			slog.Warn("[usecase][category_usecase][Create] failed to marshal new values",
+				slog.String("error_trace", errMarshal.Error()),
+			)
+			newValuesJSON = []byte("{}")
+		}
+
+		auditLog := domain.AuditLog{
 			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "CREATE",
 			Entity:    "categories",
 			EntityID:  category.ID.String(),
 			OldValues: "null",
-			NewValues: string(newValueJSON),
+			NewValues: string(newValuesJSON),
 			IPAddress: meta.IPAddress,
 			UserAgent: meta.UserAgent,
 		}
 
-		go func(logData model.AuditLog) {
+		go func(logData domain.AuditLog) {
 			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
 				slog.Error("[usecase][category_usecase][Create] failed to record audit log",
-					slog.String("error", err.Error()),
+					slog.String("error_trace", err.Error()),
 					slog.String("entity_id", logData.EntityID),
 					slog.String("actor_id", logData.ActorID.String()),
 				)
@@ -107,7 +112,7 @@ func (cUsecase *categoryUsecase) GetByID(ctx context.Context, id uuid.UUID) (dom
 	return category, nil
 }
 
-func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid.UUID, req domain.UpdateCategoryParam) (domain.Category, error) {
+func (cUsecase *categoryUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req domain.UpdateCategoryParam) (domain.Category, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -116,25 +121,29 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 
 	oldCategory, err := cUsecase.cRepo.GetByID(ctx, id)
 	if err != nil {
-		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateCategoryByID] failed fetch from repo: %w", err)
+		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateByID] failed fetch from repo: %w", err)
 	}
 
-	category := domain.Category{
-		ID:        id,
-		Name:      req.Name,
-		UpdatedBy: actorID,
-	}
+	oldCategory.Name = req.Name
+	oldCategory.UpdatedBy = actorID
 
-	updatedCategory, err := cUsecase.cRepo.UpdateCategoryByID(ctx, id, category)
+	updatedCategory, err := cUsecase.cRepo.UpdateByID(ctx, id, oldCategory)
 	if err != nil {
-		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateCategoryByID] failed update from repo: %w", err)
+		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][UpdateByID] failed update from repo: %w", err)
 	}
 
 	if metaValid {
 		oldValuesJSON, _ := json.Marshal(oldCategory)
-		newValuesJSON, _ := json.Marshal(updatedCategory)
+		newValuesJSON, errMarshal := json.Marshal(updatedCategory)
 
-		auditLog := model.AuditLog{
+		if errMarshal != nil {
+			slog.Warn("[usecase][category_usecase][Update] failed to marshal new values",
+				slog.String("error_trace", errMarshal.Error()),
+			)
+			newValuesJSON = []byte("{}")
+		}
+
+		auditLog := domain.AuditLog{
 			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "UPDATE",
@@ -146,10 +155,10 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 			UserAgent: meta.UserAgent,
 		}
 
-		go func(logData model.AuditLog) {
+		go func(logData domain.AuditLog) {
 			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
-				slog.Error("[usecase][category_usecase][UpdateCategoryByID] failed to record audit log",
-					slog.String("error", err.Error()),
+				slog.Error("[usecase][category_usecase][UpdateByID] failed to record audit log",
+					slog.String("error_trace", err.Error()),
 					slog.String("entity_id", logData.EntityID),
 					slog.String("actor_id", logData.ActorID.String()),
 				)
@@ -160,7 +169,7 @@ func (cUsecase *categoryUsecase) UpdateCategoryByID(ctx context.Context, id uuid
 	return updatedCategory, nil
 }
 
-func (cUsecase *categoryUsecase) DeleteCategoryByID(ctx context.Context, id uuid.UUID) error {
+func (cUsecase *categoryUsecase) DeleteByID(ctx context.Context, id uuid.UUID) error {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -169,17 +178,17 @@ func (cUsecase *categoryUsecase) DeleteCategoryByID(ctx context.Context, id uuid
 
 	oldCategory, err := cUsecase.cRepo.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("[usecase][category_usecase][DeleteCategoryByID] failed fetch from repo: %w", err)
+		return fmt.Errorf("[usecase][category_usecase][DeleteByID] failed fetch from repo: %w", err)
 	}
 
-	err = cUsecase.cRepo.DeleteCategoryByID(ctx, id, actorID)
+	err = cUsecase.cRepo.DeleteByID(ctx, id, actorID)
 	if err != nil {
-		return fmt.Errorf("[usecase][category_usecase][DeleteCategoryByID] failed delete from repo: %w", err)
+		return fmt.Errorf("[usecase][category_usecase][DeleteByID] failed delete from repo: %w", err)
 	}
 
 	if metaValid {
 		oldValuesJSON, _ := json.Marshal(oldCategory)
-		auditLog := model.AuditLog{
+		auditLog := domain.AuditLog{
 			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "DELETE",
@@ -190,10 +199,10 @@ func (cUsecase *categoryUsecase) DeleteCategoryByID(ctx context.Context, id uuid
 			IPAddress: meta.IPAddress,
 			UserAgent: meta.UserAgent,
 		}
-		go func(logData model.AuditLog) {
+		go func(logData domain.AuditLog) {
 			if err := cUsecase.aRepo.Create(context.Background(), logData); err != nil {
-				slog.Error("[usecase][category_usecase][DeleteCategoryByID] failed to record audit log",
-					slog.String("error", err.Error()),
+				slog.Error("[usecase][category_usecase][DeleteByID] failed to record audit log",
+					slog.String("error_trace", err.Error()),
 					slog.String("entity_id", logData.EntityID),
 					slog.String("actor_id", logData.ActorID.String()),
 				)

@@ -51,6 +51,25 @@ func (dao *TaxDAO) ToDomain() domain.Tax {
 	}
 }
 
+func FromDomainTax(c domain.Tax) TaxDAO {
+	dao := TaxDAO{
+		ID:             c.ID,
+		Name:           c.Name,
+		Rate:           c.Rate,
+		IsActive:       c.IsActive,
+		IdempotencyKey: c.IdempotencyKey,
+		CreatedBy:      c.CreatedBy,
+		UpdatedBy:      c.UpdatedBy,
+		DeletedBy:      c.DeletedBy,
+		CreatedAt:      c.CreatedAt,
+		UpdatedAt:      c.UpdatedAt,
+	}
+	if c.DeletedAt != nil {
+		dao.DeletedAt = gorm.DeletedAt{Time: *c.DeletedAt, Valid: true}
+	}
+	return dao
+}
+
 type taxRepository struct {
 	db *gorm.DB
 }

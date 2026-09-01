@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
 	"log"
@@ -32,7 +31,7 @@ func GetMemberUsecase(aRepo domain.AuditLogRepository, mRepo domain.MemberReposi
 	}
 }
 
-func (mUsecase *memberUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Member, int64, error) {
+func (mUsecase *memberUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]domain.Member, int64, error) {
 	allowedSorts := map[string]bool{
 		"member_code": true,
 		"created_at":  true,
@@ -64,7 +63,7 @@ func (mUsecase *memberUsecase) GetAll(ctx context.Context, opts domain.QueryOpti
 		return nil, 0, err
 	}
 
-	var decryptedMembers []model.Member
+	var decryptedMembers []domain.Member
 	for _, m := range encryptedMembers {
 		m.Name, err = utils.DecryptAES(m.NameEncrypted, mUsecase.aesKey)
 		if err != nil {
@@ -84,7 +83,7 @@ func (mUsecase *memberUsecase) GetAll(ctx context.Context, opts domain.QueryOpti
 	return decryptedMembers, totalItems, nil
 }
 
-func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberRequest) (model.Member, error) {
+func (mUsecase *memberUsecase) Create(ctx context.Context, req domain.CreateMemberParam) (domain.Member, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -93,12 +92,12 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 
 	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
 	if !ok && idemKey == "" {
-		return model.Member{}, domain.ErrIdempotencyKeyDuplicate
+		return domain.Member{}, domain.ErrIdempotencyKeyDuplicate
 	}
 
 	req.Phone = strings.TrimSpace(req.Phone)
 	if req.Phone == "" {
-		return model.Member{}, errors.New("")
+		return domain.Member{}, errors.New("")
 	}
 
 	ID := uuid.Must(uuid.NewV7())
@@ -106,19 +105,19 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 
 	nameEnc, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 
 	phoneEnc, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 
 	var emailEnc []byte
 	if req.Email != "" {
 		emailEnc, err = utils.EncryptAES(req.Email, mUsecase.aesKey)
 		if err != nil {
-			return model.Member{}, err
+			return domain.Member{}, err
 		}
 	}
 
@@ -130,7 +129,7 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 		emailBIndex = &hashEmail
 	}
 
-	newMember := model.Member{
+	newMember := domain.Member{
 		ID:             ID,
 		MemberCode:     memberCode,
 		NameEncrypted:  nameEnc,
@@ -149,13 +148,13 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 
 	member, err := mUsecase.mRepo.Create(ctx, newMember)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 
 	if metaValid {
 		newValueJSON, _ := json.Marshal(member)
 
-		auditLog := model.AuditLog{
+		auditLog := domain.AuditLog{
 			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "CREATE",
@@ -167,7 +166,7 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 			UserAgent: meta.UserAgent,
 		}
 
-		go func(logData model.AuditLog) {
+		go func(logData domain.AuditLog) {
 			if err := mUsecase.aRepo.Create(context.Background(), logData); err != nil {
 				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
 			}
@@ -177,29 +176,29 @@ func (mUsecase *memberUsecase) Create(ctx context.Context, req model.MemberReque
 	return member, nil
 }
 
-func (mUsecase *memberUsecase) GetByID(ctx context.Context, id uuid.UUID) (model.Member, error) {
+func (mUsecase *memberUsecase) GetByID(ctx context.Context, id uuid.UUID) (domain.Member, error) {
 	member, err := mUsecase.mRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 
 	member.Name, err = utils.DecryptAES(member.NameEncrypted, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 	member.Email, err = utils.DecryptAES(member.EmailEncrypted, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 	member.Phone, err = utils.DecryptAES(member.PhoneEncrypted, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 
 	return member, nil
 }
 
-func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req model.MemberRequest) (model.Member, error) {
+func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req domain.UpdateMemberParam) (domain.Member, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -208,21 +207,21 @@ func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req
 
 	oldMember, err := mUsecase.mRepo.GetByID(ctx, id)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 
 	nameEncrypted, err := utils.EncryptAES(req.Name, mUsecase.aesKey)
 
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 	phoneEncrypted, err := utils.EncryptAES(req.Phone, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 	emailEncrypted, err := utils.EncryptAES(req.Email, mUsecase.aesKey)
 	if err != nil {
-		return model.Member{}, err
+		return domain.Member{}, err
 	}
 
 	phoneBindex := utils.GenerateBlindedIndex(req.Phone, mUsecase.bindexKey)
@@ -232,7 +231,7 @@ func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req
 		emailBIndex = &hashEmail
 	}
 
-	member := model.Member{
+	member := domain.Member{
 		NameEncrypted:  nameEncrypted,
 		PhoneEncrypted: phoneEncrypted,
 		EmailEncrypted: emailEncrypted,
@@ -250,7 +249,7 @@ func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req
 		oldValuesJSON, _ := json.Marshal(oldMember)
 		newValuesJSON, _ := json.Marshal(updatedMember)
 
-		auditLog := model.AuditLog{
+		auditLog := domain.AuditLog{
 			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "UPDATE",
@@ -262,7 +261,7 @@ func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req
 			UserAgent: meta.UserAgent,
 		}
 
-		go func(logData model.AuditLog) {
+		go func(logData domain.AuditLog) {
 			if err := mUsecase.aRepo.Create(context.Background(), logData); err != nil {
 				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
 			}
@@ -285,7 +284,7 @@ func (mUsecase *memberUsecase) DeleteByID(ctx context.Context, id uuid.UUID) err
 	}
 
 	if metaValid {
-		auditLog := model.AuditLog{
+		auditLog := domain.AuditLog{
 			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "DELETE",
@@ -296,7 +295,7 @@ func (mUsecase *memberUsecase) DeleteByID(ctx context.Context, id uuid.UUID) err
 			IPAddress: meta.IPAddress,
 			UserAgent: meta.UserAgent,
 		}
-		go func(logData model.AuditLog) {
+		go func(logData domain.AuditLog) {
 			mUsecase.aRepo.Create(context.Background(), logData)
 		}(auditLog)
 	}
