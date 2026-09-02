@@ -9,36 +9,36 @@ import (
 )
 
 type Product struct {
-	ID             uuid.UUID       `json:"id"`
-	CategoryID     uuid.UUID       `json:"category_id"`
-	Category       Category        `json:"category,omitempty"`
-	Name           string          `json:"name"`
-	SKU            string          `json:"sku"`
-	Price          decimal.Decimal `json:"price"`
-	Stock          decimal.Decimal `json:"stock"`
-	Taxes          []Tax           `json:"tax"`
-	IdempotencyKey string          `json:"idempotency_key"`
-	CreatedBy      uuid.UUID       `json:"created_by"`
-	UpdatedBy      uuid.UUID       `json:"updated_by"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	DeletedAt      *time.Time      `json:"deleted_at"`
+	ID             uuid.UUID
+	CategoryID     uuid.UUID
+	Category       Category
+	Name           string
+	SKU            string
+	Price          decimal.Decimal
+	Stock          decimal.Decimal
+	Taxes          []Tax
+	IdempotencyKey string
+	CreatedBy      uuid.UUID
+	UpdatedBy      uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      *time.Time
 }
 
 type CreateProductParam struct {
-	CategoryID uuid.UUID       `json:"category_id"`
-	Name       string          `json:"name"`
-	SKU        string          `json:"sku"`
-	Price      decimal.Decimal `json:"price"`
-	Taxes      []Tax           `json:"tax"`
+	CategoryID uuid.UUID
+	Name       string
+	SKU        string
+	Price      decimal.Decimal
+	Taxes      []Tax
 }
 
 type UpdateProductParam struct {
-	CategoryID uuid.UUID       `json:"category_id"`
-	Name       string          `json:"name"`
-	SKU        string          `json:"sku"`
-	Price      decimal.Decimal `json:"price"`
-	Taxes      []Tax           `json:"tax"`
+	CategoryID uuid.UUID
+	Name       string
+	SKU        string
+	Price      decimal.Decimal
+	Taxes      []Tax
 }
 
 type ProductRepository interface {

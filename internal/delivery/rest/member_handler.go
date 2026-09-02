@@ -137,21 +137,3 @@ func (h *handler) UpdateMemberByID(c echo.Context) error {
 
 	return response.Success(c, http.StatusOK, domain.SuccessUpdateData, toMemberResponse(member))
 }
-
-func (h *handler) DeleteMemberByID(c echo.Context) error {
-	idParam := c.Param("id")
-
-	ID, err := uuid.Parse(idParam)
-	if err != nil {
-		return fmt.Errorf("[delivery][rest][member_handler][DeleteMemberByID] invalid UUID format: %w", domain.ErrIDInvalid)
-	}
-
-	ctx := c.Request().Context()
-
-	err = h.mUsecase.DeleteByID(ctx, ID)
-	if err != nil {
-		return err
-	}
-
-	return response.NoContent(c)
-}

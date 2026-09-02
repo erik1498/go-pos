@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go-pos/internal/domain"
 	"go-pos/pkg/utils"
 	"time"
@@ -58,6 +59,64 @@ func (dao *ProductDAO) ToDomain() domain.Product {
 	}
 }
 
+func FromDomainProduct(p domain.Product) ProductDAO {
+	deletedAt := gorm.DeletedAt{}
+	if p.Category.DeletedAt != nil {
+		deletedAt = gorm.DeletedAt{Time: *p.Category.DeletedAt, Valid: true}
+	}
+
+	category := CategoryDAO{
+		ID:             p.Category.ID,
+		Name:           p.Category.Name,
+		IdempotencyKey: p.Category.IdempotencyKey,
+		CreatedBy:      p.Category.CreatedBy,
+		UpdatedBy:      p.Category.UpdatedBy,
+		DeletedBy:      p.Category.DeletedBy,
+		CreatedAt:      p.Category.CreatedAt,
+		UpdatedAt:      p.Category.UpdatedAt,
+		DeletedAt:      deletedAt,
+	}
+
+	var taxes []TaxDAO
+	for _, t := range p.Taxes {
+		deletedAt = gorm.DeletedAt{}
+		if t.DeletedAt != nil {
+			deletedAt = gorm.DeletedAt{Time: *p.Category.DeletedAt, Valid: true}
+		}
+		taxes = append(taxes, TaxDAO{
+			ID:             t.ID,
+			Name:           t.Name,
+			Rate:           t.Rate,
+			IsActive:       t.IsActive,
+			IdempotencyKey: t.IdempotencyKey,
+			CreatedBy:      t.CreatedBy,
+			UpdatedBy:      t.UpdatedBy,
+			DeletedBy:      t.DeletedBy,
+			CreatedAt:      t.CreatedAt,
+			UpdatedAt:      t.UpdatedAt,
+			DeletedAt:      deletedAt,
+		})
+	}
+
+	dao := ProductDAO{
+		ID:             p.ID,
+		CategoryID:     p.CategoryID,
+		Category:       &category,
+		Name:           p.Name,
+		SKU:            p.SKU,
+		Price:          p.Price,
+		Stock:          p.Stock,
+		Taxes:          []TaxDAO{},
+		IdempotencyKey: p.IdempotencyKey,
+		CreatedBy:      p.CreatedBy,
+		UpdatedBy:      p.UpdatedBy,
+		CreatedAt:      p.CreatedAt,
+		UpdatedAt:      p.UpdatedAt,
+	}
+
+	return dao
+}
+
 type productRepository struct {
 	db *gorm.DB
 }
@@ -84,81 +143,93 @@ func (pRepo *productRepository) GetAll(ctx context.Context, opts domain.QueryOpt
 	}
 
 	if err := dbQuery.Count(&totalItems).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("[repository][product_repository][GetAll] db query failed: %w", err)
 	}
 
-	err := dbQuery.Order(opts.Sort).Scopes(utils.PaginationScope(opts.Page, opts.Limit)).Find(&productList).Error
+	if err := dbQuery.Order(opts.Sort).Scopes(utils.PaginationScope(opts.Page, opts.Limit)).Find(&productList).Error; err != nil {
+		return nil, 0, fmt.Errorf("[repository][product_repository][GetAll] db query failed: %w", err)
+	}
 
-	return productList, totalItems, err
+	return productList, totalItems, nil
 }
 
 func (pRepo *productRepository) Create(ctx context.Context, product domain.Product) (domain.Product, error) {
 	if err := pRepo.db.Create(&product).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return domain.Product{}, domain.ErrProductSKUIsAlreadyRegistered
+			if pgErr.ConstraintName == "idx_products_sku" {
+				return domain.Product{}, fmt.Errorf("[repository][product_repository][Create] err sku key: %w", domain.ErrProductSKUIsAlreadyRegistered)
+			}
+			if pgErr.ConstraintName == "idx_c_idempotency_key" {
+				return domain.Product{}, fmt.Errorf("[repository][product_repository][Create] err idempotency key: %w", domain.ErrIdempotencyKeyDuplicate)
+			}
+			return domain.Product{}, fmt.Errorf("[repository][product_repository][Create] err duplicate key: %w", err)
 		}
-		return domain.Product{}, err
+		return domain.Product{}, fmt.Errorf("[repository][product_repository][Create] db query failed: %w", err)
 	}
 	return product, nil
 }
 
 func (pRepo *productRepository) GetByID(ctx context.Context, id uuid.UUID) (domain.Product, error) {
-	var product domain.Product
+	var dao ProductDAO
 
-	if err := pRepo.db.Preload("Taxes").First(&product, id).Error; err != nil {
+	if err := pRepo.db.WithContext(ctx).Preload("Taxes").First(&dao, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.Product{}, domain.ErrProductNotFound
+			return domain.Product{}, fmt.Errorf("[repository][product_repository][GetByID] record not found: %w", domain.ErrProductNotFound)
 		}
-		return domain.Product{}, err
+		return domain.Product{}, fmt.Errorf("[repository][product_repository][GetByID] db query failed: %w", err)
 	}
 
-	return product, nil
+	return dao.ToDomain(), nil
 }
 
 func (pRepo *productRepository) UpdateByID(ctx context.Context, id uuid.UUID, product domain.Product) (domain.Product, error) {
-	product.ID = id
-	err := pRepo.db.Transaction(func(tx *gorm.DB) error {
-		res := tx.Model(&product).Clauses(clause.Returning{}).Updates(&product)
+	dao := FromDomainProduct(product)
+
+	err := pRepo.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&dao).Clauses(clause.Returning{}).Updates(&dao)
 		if res.Error != nil {
-			return res.Error
+			var pgErr *pgconn.PgError
+			if errors.As(res.Error, &pgErr) && pgErr.Code == "23505" {
+				if pgErr.ConstraintName == "idx_products_sku" {
+					return fmt.Errorf("[repository][product_repository][UpdateByID] err sku key: %w", domain.ErrProductSKUIsAlreadyRegistered)
+				}
+				return fmt.Errorf("[repository][product_repository][UpdateByID] err duplicate key: %w", res.Error)
+			}
+			return fmt.Errorf("[repository][product_repository][UpdateByID] db query failed: %w", res.Error)
 		}
 
 		if res.RowsAffected == 0 {
-			return domain.ErrProductNotFound
+			return fmt.Errorf("[repository][product_repository][UpdateByID] record not found: %w", domain.ErrProductNotFound)
 		}
 
-		if err := tx.Model(&product).Association("Taxes").Replace(product.Taxes); err != nil {
-			return err
+		if err := tx.Model(&dao).Association("Taxes").Replace(dao.Taxes); err != nil {
+			return fmt.Errorf("[repository][product_repository][UpdateByID] db query failed: %w", res.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return domain.Product{}, domain.ErrProductSKUIsAlreadyRegistered
-		}
 		return domain.Product{}, err
 	}
-	return product, nil
+	return dao.ToDomain(), nil
 }
 
 func (pRepo *productRepository) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
-	err := pRepo.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&domain.Product{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
-			return err
+	err := pRepo.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&ProductDAO{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
+			return fmt.Errorf("[repository][product_repository][DeleteByID] db query failed: %w", err)
 		}
 
-		res := tx.Delete(&domain.Product{}, id)
+		res := tx.Delete(&ProductDAO{}, id)
 
 		if res.Error != nil {
-			return res.Error
+			return fmt.Errorf("[repository][product_repository][DeleteByID] db query failed: %w", res.Error)
 		}
 
 		if res.RowsAffected == 0 {
-			return domain.ErrProductNotFound
+			return fmt.Errorf("[repository][product_repository][DeleteByID] record not found: %w", domain.ErrProductNotFound)
 		}
 
 		return nil

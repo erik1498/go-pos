@@ -1,7 +1,6 @@
 package database
 
 import (
-	"go-pos/internal/model"
 	"go-pos/internal/repository"
 
 	"gorm.io/gorm"
@@ -9,9 +8,11 @@ import (
 
 func seedDB(db *gorm.DB) {
 	db.AutoMigrate(
+		&repository.MemberDAO{},
 		&repository.CategoryDAO{},
-		&repository.ProductDAO{},
 		&repository.TaxDAO{},
-		&model.AuditLog{},
+		&repository.ProductDAO{},
+		&repository.AuditLogDAO{},
+		&repository.UserDAO{},
 	)
 }

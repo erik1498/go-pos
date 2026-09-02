@@ -270,35 +270,3 @@ func (mUsecase *memberUsecase) UpdateByID(ctx context.Context, id uuid.UUID, req
 
 	return updatedMember, nil
 }
-
-func (mUsecase *memberUsecase) DeleteByID(ctx context.Context, id uuid.UUID) error {
-	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
-	var actorID uuid.UUID
-	if metaValid {
-		actorID = uuid.MustParse(meta.UserID)
-	}
-
-	err := mUsecase.mRepo.DeleteByID(ctx, id, actorID)
-	if err != nil {
-		return err
-	}
-
-	if metaValid {
-		auditLog := domain.AuditLog{
-			ActorID:   actorID,
-			ActorRole: meta.Role,
-			Action:    "DELETE",
-			Entity:    "members",
-			EntityID:  id.String(),
-			OldValues: "{}",
-			NewValues: "null",
-			IPAddress: meta.IPAddress,
-			UserAgent: meta.UserAgent,
-		}
-		go func(logData domain.AuditLog) {
-			mUsecase.aRepo.Create(context.Background(), logData)
-		}(auditLog)
-	}
-
-	return nil
-}

@@ -43,7 +43,6 @@ type MemberRepository interface {
 	Create(ctx context.Context, member Member) (Member, error)
 	GetByID(ctx context.Context, id uuid.UUID) (Member, error)
 	UpdateByID(ctx context.Context, id uuid.UUID, member Member) (Member, error)
-	DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error
 }
 
 type MemberUsecase interface {
@@ -51,5 +50,4 @@ type MemberUsecase interface {
 	Create(ctx context.Context, member CreateMemberParam) (Member, error)
 	GetByID(ctx context.Context, id uuid.UUID) (Member, error)
 	UpdateByID(ctx context.Context, id uuid.UUID, req UpdateMemberParam) (Member, error)
-	DeleteByID(ctx context.Context, id uuid.UUID) error
 }

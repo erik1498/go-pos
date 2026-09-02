@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"go-pos/pkg/middleware"
 	"go-pos/pkg/utils"
 	"log"
@@ -32,7 +31,7 @@ func GetOrderUsecase(aRepo domain.AuditLogRepository, oRepo domain.OrderReposito
 	}
 }
 
-func (oUsecase *orderUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]model.Order, int64, error) {
+func (oUsecase *orderUsecase) GetAll(ctx context.Context, opts domain.QueryOptions) ([]domain.Order, int64, error) {
 	allowedSorts := map[string]bool{
 		"order_no":   true,
 		"created_at": true,
@@ -47,7 +46,7 @@ func (oUsecase *orderUsecase) GetAll(ctx context.Context, opts domain.QueryOptio
 	return oUsecase.oRepo.GetAll(ctx, cleanOpts)
 }
 
-func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderRequest) (model.Order, error) {
+func (oUsecase *orderUsecase) Create(ctx context.Context, req domain.CreateOrderParam) (domain.Order, error) {
 	meta, metaValid := ctx.Value(middleware.AuditMetaKey).(middleware.AuditMeta)
 	var actorID uuid.UUID
 	if metaValid {
@@ -56,25 +55,25 @@ func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderR
 
 	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
 	if !ok && idemKey == "" {
-		return model.Order{}, domain.ErrIdempotencyKeyDuplicate
+		return domain.Order{}, domain.ErrIdempotencyKeyDuplicate
 	}
 
 	_, err := oUsecase.mRepo.GetByID(ctx, *req.MemberID)
 	if err != nil && req.MemberID != nil {
-		return model.Order{}, err
+		return domain.Order{}, err
 	}
 
 	orderID := uuid.Must(uuid.NewV7())
 	orderNo := fmt.Sprintf("ORD-%s-%s", time.Now().Format("060102150405"), strings.ToUpper(orderID.String()[:4]))
-	order := model.Order{
+	order := domain.Order{
 		ID:             orderID,
 		OrderNo:        orderNo,
 		MemberID:       req.MemberID,
 		PaymentMethod:  req.PaymentMethod,
-		PaymentStatus:  model.PaymentStatusPending,
+		PaymentStatus:  domain.PaymentStatusPending,
 		CreatedBy:      actorID,
 		IdempotencyKey: idemKey,
-		Items:          []model.OrderItem{},
+		Items:          []domain.OrderItem{},
 	}
 
 	totalQty := decimal.NewFromInt(0)
@@ -84,17 +83,17 @@ func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderR
 	for _, reqItem := range req.Items {
 		product, err := oUsecase.pRepo.GetByID(ctx, reqItem.ProductID)
 		if err != nil {
-			return model.Order{}, domain.ErrProductNotFound
+			return domain.Order{}, domain.ErrProductNotFound
 		}
 
 		if product.Stock.LessThan(reqItem.Qty) {
-			return model.Order{}, domain.ErrProductStockIsNotEnough
+			return domain.Order{}, domain.ErrProductStockIsNotEnough
 		}
 
 		itemSubTotal := product.Price.Mul(reqItem.Qty)
 		orderItemID := uuid.Must(uuid.NewV7())
 
-		orderItem := model.OrderItem{
+		orderItem := domain.OrderItem{
 			ID:             orderItemID,
 			OrderID:        orderID,
 			ProductID:      reqItem.ProductID,
@@ -104,7 +103,7 @@ func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderR
 			SubTotal:       itemSubTotal,
 			CreatedBy:      actorID,
 			IdempotencyKey: idemKey,
-			AppliedTaxes:   []model.OrderItemTax{},
+			AppliedTaxes:   []domain.OrderItemTax{},
 		}
 
 		itemTotalTax := decimal.NewFromInt(0)
@@ -119,7 +118,7 @@ func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderR
 
 				taxID := tax.ID
 
-				orderItemTax := model.OrderItemTax{
+				orderItemTax := domain.OrderItemTax{
 					ID:             taxID,
 					OrderItemID:    orderItemID,
 					TaxID:          &taxID,
@@ -148,21 +147,21 @@ func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderR
 	order.TotalTax = totalTax
 	order.GrandTotal = subTotal.Add(totalTax)
 
-	if order.PaymentMethod == model.PaymentMethodCash {
-		order.PaymentStatus = model.PaymentStatusPaid
+	if order.PaymentMethod == domain.PaymentMethodCash {
+		order.PaymentStatus = domain.PaymentStatusPaid
 		now := time.Now()
 		order.PaidAt = &now
 	}
 
 	order, err = oUsecase.oRepo.Create(ctx, order)
 	if err != nil {
-		return model.Order{}, err
+		return domain.Order{}, err
 	}
 
 	if metaValid {
 		newValuesJSON, _ := json.Marshal(order)
 
-		auditLog := model.AuditLog{
+		auditLog := domain.AuditLog{
 			ActorID:   actorID,
 			ActorRole: meta.Role,
 			Action:    "CREATE",
@@ -174,7 +173,7 @@ func (oUsecase *orderUsecase) Create(ctx context.Context, req model.CreateOrderR
 			UserAgent: meta.UserAgent,
 		}
 
-		go func(logData model.AuditLog) {
+		go func(logData domain.AuditLog) {
 			if err := oUsecase.aRepo.Create(context.Background(), logData); err != nil {
 				log.Printf("AUDIT LOG: RECORD AUDIT LOG FAILED, ERR : %v", err)
 			}

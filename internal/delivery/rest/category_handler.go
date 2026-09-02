@@ -44,14 +44,14 @@ func (h *handler) GetAllCategory(c echo.Context) error {
 	opts := utils.ExtractQueryOptions(c)
 	ctx := c.Request().Context()
 
-	categoryList, totalItems, err := h.cUsecase.GetAll(ctx, opts)
+	categories, totalItems, err := h.cUsecase.GetAll(ctx, opts)
 	if err != nil {
 		return err
 	}
 
 	meta := utils.BuildMetaPage(opts.Page, opts.Limit, totalItems)
 
-	return response.SuccessWithMeta(c, http.StatusOK, domain.SuccessGetData, toCategoryResponseList(categoryList), meta)
+	return response.SuccessWithMeta(c, http.StatusOK, domain.SuccessGetData, toCategoryResponseList(categories), meta)
 }
 
 func (h *handler) CreateCategory(c echo.Context) error {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"go-pos/pkg/response"
 	"go-pos/pkg/utils"
 	"net/http"
@@ -28,7 +27,7 @@ func (h *handler) GetAllOrder(c echo.Context) error {
 }
 
 func (h *handler) CreateOrder(c echo.Context) error {
-	var req model.CreateOrderRequest
+	var req domain.CreateOrderParam
 
 	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
 		return response.ErrBadRequest(c, domain.ErrBadRequest.Error())

@@ -169,25 +169,3 @@ func (mRepo *memberRepository) UpdateByID(ctx context.Context, id uuid.UUID, mem
 	}
 	return dao.ToDomain(), nil
 }
-
-func (mRepo *memberRepository) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
-	err := mRepo.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&MemberDAO{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
-			return fmt.Errorf("[repository][member_repository][DeleteMemberByID] db query failed: %w", err)
-		}
-
-		res := tx.Delete(&MemberDAO{}, id)
-
-		if res.Error != nil {
-			return fmt.Errorf("[repository][member_repository][DeleteMemberByID] db query failed: %w", res.Error)
-		}
-
-		if res.RowsAffected == 0 {
-			return fmt.Errorf("[repository][member_repository][DeleteMemberByID] record not found: %w", domain.ErrCategoryNotFound)
-		}
-
-		return nil
-	})
-
-	return err
-}

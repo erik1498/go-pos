@@ -53,7 +53,7 @@ func (cUsecase *categoryUsecase) Create(ctx context.Context, req domain.CreateCa
 
 	idemKey, ok := ctx.Value(middleware.IdempotencyKeyCtx).(string)
 	if !ok || idemKey == "" {
-		return domain.Category{}, fmt.Errorf("[usecase][category][Create] idempotency key required: %w", domain.ErrIdempotencyRequired)
+		return domain.Category{}, fmt.Errorf("[usecase][category_usecase][Create] idempotency key required: %w", domain.ErrIdempotencyRequired)
 	}
 
 	category, err := cUsecase.cRepo.Create(ctx, domain.Category{

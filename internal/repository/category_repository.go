@@ -155,17 +155,17 @@ func (cRepo *categoryRepo) UpdateByID(ctx context.Context, id uuid.UUID, categor
 func (cRepo *categoryRepo) DeleteByID(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error {
 	err := cRepo.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&CategoryDAO{}).Where("id = ?", id).Update("deleted_by", deletedBy).Error; err != nil {
-			return fmt.Errorf("[repository][category_repository][DeleteCategoryByID] db query failed: %w", err)
+			return fmt.Errorf("[repository][category_repository][DeleteByID] db query failed: %w", err)
 		}
 
 		res := tx.Delete(&CategoryDAO{}, id)
 
 		if res.Error != nil {
-			return fmt.Errorf("[repository][category_repository][DeleteCategoryByID] db query failed: %w", res.Error)
+			return fmt.Errorf("[repository][category_repository][DeleteByID] db query failed: %w", res.Error)
 		}
 
 		if res.RowsAffected == 0 {
-			return fmt.Errorf("[repository][category_repository][DeleteCategoryByID] record not found: %w", domain.ErrCategoryNotFound)
+			return fmt.Errorf("[repository][category_repository][DeleteByID] record not found: %w", domain.ErrCategoryNotFound)
 		}
 
 		return nil

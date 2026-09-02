@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"go-pos/internal/domain"
-	"go-pos/internal/model"
 	"net/http"
 	"strings"
 
@@ -74,7 +73,7 @@ func (am *authMiddleware) CheckAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			UserAgent: userAgent,
 		}
 
-		authContext := context.WithValue(ctx, model.AuthContextKey, userID)
+		authContext := context.WithValue(ctx, domain.AuthContextKey, userID)
 		auditContext := context.WithValue(authContext, AuditMetaKey, auditMeta)
 		c.SetRequest(c.Request().WithContext(auditContext))
 
