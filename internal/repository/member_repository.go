@@ -20,8 +20,8 @@ type MemberDAO struct {
 	NameEncrypted  []byte    `gorm:"type:bytea;not null"`
 	PhoneEncrypted []byte    `gorm:"type:bytea;not null"`
 	EmailEncrypted []byte    `gorm:"type:bytea;not null"`
-	PhoneBIndex    string    `gorm:"type:varchar(64);uniqueIndex:idx_active_phone_bindex,where:deleted_at IS NULL;not null"`
-	EmailBIndex    *string   `gorm:"type:varchar(64);uniqueIndex:idx_active_email_bindex,where:deleted_at IS NULL"`
+	PhoneBIndex    string    `gorm:"type:varchar(64);uniqueIndex:idx_active_phone_bindex;not null"`
+	EmailBIndex    *string   `gorm:"type:varchar(64);uniqueIndex:idx_active_email_bindex"`
 	Name           string    `gorm:"-"`
 	Phone          string    `gorm:"-"`
 	Email          string    `gorm:"-"`

@@ -89,7 +89,7 @@ func (uRepo *userRepository) Register(ctx context.Context, user domain.User) (do
 
 func (uRepo *userRepository) GetByUsername(ctx context.Context, username string) (domain.User, error) {
 	var user UserDAO
-	if err := uRepo.db.First(&user).Error; err != nil {
+	if err := uRepo.db.WithContext(ctx).Where(&UserDAO{Username: username}).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.User{}, fmt.Errorf("[repository][user_repository][GetByUsername] err not found: %w", domain.ErrUsernameOrPasswordInvalid)
 		}

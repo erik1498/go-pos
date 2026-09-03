@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	echoMid "github.com/labstack/echo/v4/middleware"
@@ -98,6 +99,8 @@ func main() {
 	rdb := initRedis()
 
 	e := echo.New()
+
+	e.Validator = &utils.CustomValidator{Validator: validator.New()}
 	e.HideBanner = true
 	e.HidePort = true
 
