@@ -10,14 +10,13 @@ import (
 	"go-pos/pkg/middleware"
 	"go-pos/pkg/response"
 	"go-pos/pkg/utils"
-	"log/slog" // Beralih penuh ke slog
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	echoMid "github.com/labstack/echo/v4/middleware"
@@ -100,7 +99,7 @@ func main() {
 
 	e := echo.New()
 
-	e.Validator = &utils.CustomValidator{Validator: validator.New()}
+	e.Validator = utils.InitValidator()
 	e.HideBanner = true
 	e.HidePort = true
 

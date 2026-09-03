@@ -11,9 +11,9 @@ import (
 )
 
 type RegisterRequest struct {
-	Username string `json:"username" validate:"required"`
-	Email    string `json:"email" validate:"required"`
-	Password string `json:"password" validate:"required"`
+	Username string `json:"username" validate:"required,min=4,max=50"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,secure_password"`
 }
 
 type LoginRequest struct {
@@ -22,10 +22,11 @@ type LoginRequest struct {
 }
 
 type UserResponse struct {
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Username       string    `json:"username"`
+	Email          string    `json:"email"`
+	IdempotencyKey string    `json:"idempotency_key"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type UserSessionResponse struct {
@@ -40,14 +41,24 @@ func toUserSessionResponse(u domain.UserSession) UserSessionResponse {
 	}
 }
 
+func toUserResponse(u domain.User) UserResponse {
+	return UserResponse{
+		Username:       u.Username,
+		Email:          u.Email,
+		IdempotencyKey: u.IdempotencyKey,
+		CreatedAt:      u.CreatedAt,
+		UpdatedAt:      u.UpdatedAt,
+	}
+}
+
 func (h *handler) RegisterUser(c echo.Context) error {
 	var req RegisterRequest
 	if err := c.Bind(&req); err != nil {
-		return fmt.Errorf("[delivery][rest][user_handler][RegisterUser] invalid body: %w", domain.ErrBadRequest)
+		return fmt.Errorf("[delivery][rest][user_handler][RegisterUser] invalid body (%v): %w", err, domain.ErrBadRequest)
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return fmt.Errorf("[delivery][rest][user_handler][RegisterUser] validation error: %w", domain.ErrBadRequest)
+		return fmt.Errorf("[delivery][rest][user_handler][RegisterUser] validation error (%v): %w", err, domain.ErrBadRequest)
 	}
 
 	ctx := c.Request().Context()
@@ -63,7 +74,7 @@ func (h *handler) RegisterUser(c echo.Context) error {
 		return err
 	}
 
-	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, user)
+	return response.Success(c, http.StatusCreated, domain.SuccessCreateData, toUserResponse(user))
 }
 
 func (h *handler) LoginUser(c echo.Context) error {
@@ -88,5 +99,5 @@ func (h *handler) LoginUser(c echo.Context) error {
 		return err
 	}
 
-	return response.Success(c, http.StatusOK, domain.SuccessLogin, userSession)
+	return response.Success(c, http.StatusOK, domain.SuccessLogin, toUserSessionResponse(userSession))
 }
