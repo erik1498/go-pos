@@ -28,9 +28,14 @@ func CustomHTTPErrorHandler(err error, c echo.Context) {
 	} else {
 		if echoErr, ok := errors.AsType[*echo.HTTPError](err); ok {
 			statusCode = echoErr.Code
-			message = echoErr.Message.(string)
-			if statusCode < 500 {
-				logLevel = slog.LevelWarn
+			switch msg := echoErr.Message.(type) {
+			case string:
+				message = msg
+			case *domain.CustomError:
+				message = msg.Message
+				statusCode = msg.HTTPCode
+			default:
+				message = domain.ErrInternalServer.Message
 			}
 		} else {
 			statusCode = http.StatusInternalServerError
