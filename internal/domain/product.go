@@ -11,7 +11,7 @@ import (
 type Product struct {
 	ID             uuid.UUID
 	CategoryID     uuid.UUID
-	Category       Category
+	Category       *Category
 	Name           string
 	SKU            string
 	Price          decimal.Decimal

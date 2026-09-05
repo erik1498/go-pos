@@ -19,6 +19,7 @@ type MemberRequest struct {
 }
 
 type MemberResponse struct {
+	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
 	Phone     string    `json:"phone"`
 	Email     string    `json:"email"`
@@ -28,6 +29,7 @@ type MemberResponse struct {
 
 func toMemberResponse(m domain.Member) MemberResponse {
 	return MemberResponse{
+		ID:        m.ID,
 		Name:      m.Name,
 		Phone:     m.Phone,
 		Email:     m.Email,

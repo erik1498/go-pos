@@ -69,7 +69,7 @@ func (pUsecase *productUsecase) Create(ctx context.Context, req domain.CreatePro
 	product := domain.Product{
 		ID:             uuid.Must(uuid.NewV7()),
 		CategoryID:     category.ID,
-		Category:       category,
+		Category:       &category,
 		Name:           req.Name,
 		SKU:            req.SKU,
 		Price:          req.Price,
@@ -159,7 +159,7 @@ func (pUsecase *productUsecase) UpdateByID(ctx context.Context, id uuid.UUID, re
 
 	product := domain.Product{
 		CategoryID: category.ID,
-		Category:   category,
+		Category:   &category,
 		Name:       req.Name,
 		SKU:        req.SKU,
 		Price:      req.Price,

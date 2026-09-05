@@ -22,7 +22,7 @@ type ProductDAO struct {
 	Name           string          `gorm:"type:varchar(150);not null;index"`
 	SKU            string          `gorm:"type:varchar(50);uniqueIndex:idx_active_sku,where:deleted_at IS NULL;not null"`
 	Price          decimal.Decimal `gorm:"type:numeric(12,3);not null;"`
-	Stock          decimal.Decimal `gorm:"type:numeric(12,3);default:0;no null;"`
+	Stock          decimal.Decimal `gorm:"type:numeric(12,3);default:0;not null;"`
 	Taxes          []TaxDAO        `gorm:"many2many:product_taxes;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	IdempotencyKey string          `gorm:"type:varchar(100);uniqueIndex;not null"`
 	CreatedBy      uuid.UUID       `gorm:"type:uuid;not null"`
@@ -41,15 +41,27 @@ func (dao *ProductDAO) ToDomain() domain.Product {
 	if dao.DeletedAt.Valid {
 		deletedAt = &dao.DeletedAt.Time
 	}
+
+	var categoryPtr *domain.Category
+	if dao.Category != nil {
+		catDomain := dao.Category.ToDomain()
+		categoryPtr = &catDomain
+	}
+
+	var taxesList []domain.Tax
+	for _, taxDAO := range dao.Taxes {
+		taxesList = append(taxesList, taxDAO.ToDomain())
+	}
+
 	return domain.Product{
 		ID:             dao.ID,
 		CategoryID:     dao.CategoryID,
-		Category:       dao.ToDomain().Category,
+		Category:       categoryPtr,
 		Name:           dao.Name,
 		SKU:            dao.SKU,
 		Price:          dao.Price,
 		Stock:          dao.Stock,
-		Taxes:          dao.ToDomain().Taxes,
+		Taxes:          taxesList,
 		IdempotencyKey: dao.IdempotencyKey,
 		CreatedBy:      dao.CreatedBy,
 		UpdatedBy:      dao.UpdatedBy,

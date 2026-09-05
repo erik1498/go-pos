@@ -10,8 +10,8 @@ func seedDB(db *gorm.DB) {
 	db.AutoMigrate(
 		&repository.MemberDAO{},
 		&repository.CategoryDAO{},
-		&repository.TaxDAO{},
 		&repository.ProductDAO{},
+		&repository.TaxDAO{},
 		&repository.AuditLogDAO{},
 		&repository.UserDAO{},
 	)
